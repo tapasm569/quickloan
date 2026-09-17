@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_bg"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lender Dashboard"
+            android:textColor="@color/text_main"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Quick operation controls"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 2-Column Grid of 6 Big Options -->
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alignmentMode="alignMargins"
+            android:columnCount="2"
+            android:useDefaultMargins="true">
+
+            <!-- 1. Approve Loan -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardApproveLoan"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✅"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Approve Loan"
+                        android:textColor="@color/text_main"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 2. Today's Due -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardTodaysDue"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⏰"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Today's Due"
+                        android:textColor="@color/brand_rose"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 3. Today's Payment -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardTodaysPayment"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💰"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Today's Payment"
+                        android:textColor="@color/brand_emerald"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 4. Master -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardMaster"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Master"
+                        android:textColor="@color/brand_accent"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 5. Payment History -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardPaymentHistory"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📜"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Payment History"
+                        android:textColor="@color/text_main"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 6. Ledger Book -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardLedgerBook"
+                android:layout_width="0dp"
+                android:layout_height="115dp"
+                android:layout_columnWeight="1"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="3dp"
+                app:cardBackgroundColor="@color/card_bg">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📖"
+                        android:textSize="28sp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Ledger Book"
+                        android:textColor="@color/brand_amber"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </GridLayout>
+    </LinearLayout>
+</ScrollView>
+                      
