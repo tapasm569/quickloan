@@ -1,12 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- System & Theme Base Colors -->
+    <color name="primary">#0F172A</color>
+    <color name="primary_dark">#020617</color>
+    <color name="accent">#4F46E5</color>
+    <color name="background">#F8FAFC</color>
+
+    <!-- UI State & Text Colors -->
+    <color name="card_bg">#FFFFFF</color>
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="paid_color">#10B981</color>
+    <color name="pending_color">#EF4444</color>
+
+    <!-- Modern Brand Palette -->
     <color name="brand_primary">#0F172A</color>
     <color name="brand_accent">#4F46E5</color>
     <color name="brand_emerald">#10B981</color>
     <color name="brand_rose">#F43F5E</color>
     <color name="brand_amber">#F59E0B</color>
     <color name="surface_bg">#F8FAFC</color>
-    <color name="card_bg">#FFFFFF</color>
     <color name="text_main">#0F172A</color>
     <color name="text_muted">#64748B</color>
     <color name="border_light">#E2E8F0</color>
