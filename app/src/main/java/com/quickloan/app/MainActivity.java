@@ -10,38 +10,47 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    private DatabaseHelper dbHelper;
+    private SupabaseHelper supabase;
     private LoanAdapter adapter;
     private TextView tvTotalLent, tvTotalPending;
 
     @Override
-    protected void组织(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        dbHelper = new DatabaseHelper(this);
+        supabase = new SupabaseHelper();
         tvTotalLent = findViewById(R.id.tvTotalLent);
         tvTotalPending = findViewById(R.id.tvTotalPending);
 
         RecyclerView rvLoans = findViewById(R.id.rvLoans);
         rvLoans.setLayoutManager(new LinearLayoutManager(this));
 
-        adapter = new LoanAdapter(dbHelper.getAllLoans(), new LoanAdapter.OnLoanActionListener() {
+        adapter = new LoanAdapter(new ArrayList<>(), new LoanAdapter.OnLoanActionListener() {
             @Override
             public void onTogglePaid(LoanModel loan) {
                 int newStatus = (loan.getIsPaid() == 1) ? 0 : 1;
-                dbHelper.updateLoanStatus(loan.getId(), newStatus);
-                refreshData();
+                supabase.updateLoanStatus(loan.getId(), newStatus, new SupabaseHelper.Callback<Void>() {
+                    @Override
+                    public void onSuccess(Void result) {
+                        loadData();
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Toast.makeText(MainActivity.this, "Update failed: " + error, Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
 
             @Override
@@ -50,9 +59,18 @@ public class MainActivity extends AppCompatActivity {
                         .setTitle("Delete Record")
                         .setMessage("Delete loan entry for " + loan.getCustomerName() + "?")
                         .setPositiveButton("Delete", (dialog, which) -> {
-                            dbHelper.deleteLoan(loan.getId());
-                            refreshData();
-                            Toast.makeText(MainActivity.this, "Loan entry deleted", Toast.LENGTH_SHORT).show();
+                            supabase.deleteLoan(loan.getId(), new SupabaseHelper.Callback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    loadData();
+                                    Toast.makeText(MainActivity.this, "Loan deleted", Toast.LENGTH_SHORT).show();
+                                }
+
+                                @Override
+                                public void onError(String error) {
+                                    Toast.makeText(MainActivity.this, "Delete failed: " + error, Toast.LENGTH_SHORT).show();
+                                }
+                            });
                         })
                         .setNegativeButton("Cancel", null)
                         .show();
@@ -64,12 +82,7 @@ public class MainActivity extends AppCompatActivity {
         FloatingActionButton fab = findViewById(R.id.fabAddLoan);
         fab.setOnClickListener(v -> showAddLoanDialog());
 
-        refreshData();
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        组织(savedInstanceState);
+        loadData();
     }
 
     private void showAddLoanDialog() {
@@ -95,30 +108,47 @@ public class MainActivity extends AppCompatActivity {
                     double amount = Double.parseDouble(amountStr);
                     String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-                    dbHelper.insertLoan(name, phone, amount, currentDate, note);
-                    refreshData();
-                    Toast.makeText(MainActivity.this, "Loan recorded successfully", Toast.LENGTH_SHORT).show();
+                    supabase.addLoan(name, phone, amount, currentDate, note, new SupabaseHelper.Callback<Void>() {
+                        @Override
+                        public void onSuccess(Void result) {
+                            loadData();
+                            Toast.makeText(MainActivity.this, "Saved to Cloud", Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private void refreshData() {
-        List<LoanModel> loans = dbHelper.getAllLoans();
-        adapter.updateData(loans);
+    private void loadData() {
+        supabase.fetchLoans(new SupabaseHelper.Callback<List<LoanModel>>() {
+            @Override
+            public void onSuccess(List<LoanModel> loans) {
+                adapter.updateData(loans);
 
-        double totalLent = 0;
-        double totalPending = 0;
+                double totalLent = 0;
+                double totalPending = 0;
 
-        for (LoanModel item : loans) {
-            totalLent += item.getAmount();
-            if (item.getIsPaid() == 0) {
-                totalPending += item.getAmount();
+                for (LoanModel item : loans) {
+                    totalLent += item.getAmount();
+                    if (item.getIsPaid() == 0) {
+                        totalPending += item.getAmount();
+                    }
+                }
+
+                tvTotalLent.setText(String.format(Locale.getDefault(), "₹%.0f", totalLent));
+                tvTotalPending.setText(String.format(Locale.getDefault(), "₹%.0f", totalPending));
             }
-        }
 
-        tvTotalLent.setText(String.format(Locale.getDefault(), "₹%.0f", totalLent));
-        tvTotalPending.setText(String.format(Locale.getDefault(), "₹%.0f", totalPending));
+            @Override
+            public void onError(String error) {
+                Toast.makeText(MainActivity.this, "Failed to load: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
-                  }
-          
+                    }
