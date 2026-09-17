@@ -1,13 +1,20 @@
 package com.quickloan.app;
 
+import com.google.gson.annotations.SerializedName;
+
 public class LoanModel {
     private int id;
+    
+    @SerializedName("name")
     private String customerName;
+    
     private String phone;
     private double amount;
     private String date;
     private String note;
-    private int isPaid; // 0 for Pending, 1 for Paid
+    
+    @SerializedName("is_paid")
+    private int isPaid;
 
     public LoanModel(int id, String customerName, String phone, double amount, String date, String note, int isPaid) {
         this.id = id;
