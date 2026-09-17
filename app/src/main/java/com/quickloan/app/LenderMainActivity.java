@@ -1,31 +1,52 @@
 package com.quickloan.app;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
 public class LenderMainActivity extends AppCompatActivity {
 
-    private final String[] tabTitles = new String[]{"Pending", "Paid", "Search", "Account"};
+    private DrawerLayout drawerLayout;
+    private ViewPager2 viewPager;
+
+    private final int[] tabIcons = new int[]{
+            R.drawable.ic_tab_pending,
+            R.drawable.ic_tab_payment,
+            R.drawable.ic_tab_search,
+            R.drawable.ic_tab_account
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_lender_main);
 
-        String lenderPhone = getIntent().getStringExtra("LENDER_PHONE");
-        if (lenderPhone != null) {
-            ((TextView) findViewById(R.id.tvLenderId)).setText("ID: " + lenderPhone);
-        }
+        Toolbar toolbar = findViewById(R.id.toolbarLender);
+        setSupportActionBar(toolbar);
 
+        drawerLayout = findViewById(R.id.lender_drawer_layout);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawerLayout, toolbar, android.R.string.ok, android.R.string.cancel);
+        toggle.getDrawerArrowDrawable().setColor(getResources().getColor(android.R.color.white));
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        viewPager = findViewById(R.id.viewPager);
         TabLayout tabLayout = findViewById(R.id.tabLayout);
-        ViewPager2 viewPager = findViewById(R.id.viewPager);
 
         viewPager.setAdapter(new FragmentStateAdapter(this) {
             @NonNull
@@ -42,13 +63,46 @@ public class LenderMainActivity extends AppCompatActivity {
 
             @Override
             public int getItemCount() {
-                return tabTitles.length;
+                return tabIcons.length;
             }
         });
 
-        // Sync tabs with smooth horizontal swiping
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> 
-            tab.setText(tabTitles[position])
-        ).attach();
+        // Attach stylish logos to tabs
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
+            tab.setIcon(tabIcons[position]);
+        }).attach();
+
+        // Hamburger Menu actions
+        NavigationView navView = findViewById(R.id.nav_view_lender);
+        navView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+
+            if (id == R.id.nav_lender_home) {
+                viewPager.setCurrentItem(0, true);
+            } else if (id == R.id.nav_lender_contact) {
+                showContactDialog();
+            } else if (id == R.id.nav_lender_logout) {
+                Intent intent = new Intent(this, LoginActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            }
+
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        });
     }
-                                           }
+
+    private void showContactDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Support & Contact")
+                .setMessage("Helpline: +91 9932655607\nEmail: support@quickloan.com")
+                .setPositiveButton("Call Now", (dialog, which) -> {
+                    Intent callIntent = new Intent(Intent.ACTION_DIAL);
+                    callIntent.setData(Uri.parse("tel:9932655607"));
+                    startActivity(callIntent);
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+                                              }
