@@ -17,7 +17,9 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".RegisterActivity" />
         <activity android:name=".LenderMainActivity" />
+        <activity android:name=".MasterActivity" />
+        <activity android:name=".CustomerProfileActivity" />
+        <activity android:name=".CustomerMainActivity" />
     </application>
 </manifest>
