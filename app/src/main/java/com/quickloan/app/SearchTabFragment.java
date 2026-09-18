@@ -8,6 +8,7 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class SearchTabFragment extends Fragment {
@@ -44,13 +46,15 @@ public class SearchTabFragment extends Fragment {
 
         loadAllData();
 
-        etSearch.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
-            @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
-                filter(s.toString().toLowerCase().trim());
-            }
-            @Override public void afterTextChanged(Editable s) {}
-        });
+        if (etSearch != null) {
+            etSearch.addTextChangedListener(new TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
+                @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
+                    filter(s.toString().toLowerCase(Locale.getDefault()).trim());
+                }
+                @Override public void afterTextChanged(Editable s) {}
+            });
+        }
 
         return view;
     }
@@ -69,9 +73,11 @@ public class SearchTabFragment extends Fragment {
                 if (!response.isSuccessful()) return;
                 String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                fullList = gson.fromJson(body, type);
-                if (fullList == null) fullList = new ArrayList<>();
-                filter("");
+                List<Map<String, Object>> res = gson.fromJson(body, type);
+                fullList = res != null ? res : new ArrayList<>();
+                if (isAdded() && getActivity() != null) {
+                    requireActivity().runOnUiThread(() -> filter(""));
+                }
             }
         });
     }
@@ -79,16 +85,16 @@ public class SearchTabFragment extends Fragment {
     private void filter(String query) {
         List<Map<String, Object>> filtered = new ArrayList<>();
         for (Map<String, Object> item : fullList) {
-            String name = String.valueOf(item.get("name")).toLowerCase();
-            String phone = String.valueOf(item.get("phone")).toLowerCase();
-            String id = String.valueOf(item.get("id")).toLowerCase();
+            String name = item.get("name") != null ? item.get("name").toString().toLowerCase() : "";
+            String phone = item.get("phone") != null ? item.get("phone").toString().toLowerCase() : "";
+            String id = item.get("id") != null ? item.get("id").toString().toLowerCase() : "";
             if (name.contains(query) || phone.contains(query) || id.contains(query)) {
                 filtered.add(item);
             }
         }
 
-        if (getActivity() != null) {
-            requireActivity().runOnUiThread(() -> rv.setAdapter(new RecyclerView.Adapter<SearchVH>() {
+        if (isAdded() && getActivity() != null && rv != null) {
+            rv.setAdapter(new RecyclerView.Adapter<SearchVH>() {
                 @NonNull
                 @Override
                 public SearchVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -101,38 +107,47 @@ public class SearchTabFragment extends Fragment {
                     Map<String, Object> l = filtered.get(position);
                     String phone = l.get("phone") != null ? String.valueOf(l.get("phone")) : "";
                     String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
-                    double amt = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
+                    
+                    double amt = 0;
+                    if (l.get("amount") != null) {
+                        try {
+                            amt = Double.parseDouble(String.valueOf(l.get("amount")));
+                        } catch (Exception ignored) {}
+                    }
 
                     holder.tvName.setText(name);
-                    holder.tvPhone.setText(phone);
-                    holder.tvAmount.setText(String.format("₹%.0f", amt));
+                    holder.tvPhone.setText("+91 " + phone);
+                    holder.tvAmount.setText(String.format(Locale.getDefault(), "₹%.0f", amt));
 
-                    holder.btnCall.setOnClickListener(v -> 
-                        startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
-                    );
+                    final String dialPhone = phone;
+                    holder.btnCall.setOnClickListener(v -> {
+                        if (!dialPhone.isEmpty()) {
+                            startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + dialPhone)));
+                        }
+                    });
 
                     holder.btnWhatsApp.setOnClickListener(v -> {
-                        String clean = phone.replaceAll("[^0-9]", "");
+                        String clean = dialPhone.replaceAll("[^0-9]", "");
                         if (clean.length() == 10) clean = "91" + clean;
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean)));
                     });
                 }
 
                 @Override public int getItemCount() { return filtered.size(); }
-            }));
+            });
         }
     }
 
     static class SearchVH extends RecyclerView.ViewHolder {
         TextView tvName, tvPhone, tvAmount;
-        View btnCall, btnWhatsApp;
-        public SearchVH(@NonNull View itemView) {
-            super(itemView);
-            tvName = itemView.findViewById(R.id.tvCustomerName);
-            tvPhone = itemView.findViewById(R.id.tvCustomerPhone);
-            tvAmount = itemView.findViewById(R.id.tvLoanAmount);
-            btnCall = itemView.findViewById(R.id.btnCall);
-            btnWhatsApp = itemView.findViewById(R.id.btnWhatsApp);
+        Button btnCall, btnWhatsApp;
+        public SearchVH(@NonNull View v) {
+            super(v);
+            tvName = v.findViewById(R.id.tvCustomerName);
+            tvPhone = v.findViewById(R.id.tvCustomerPhone);
+            tvAmount = v.findViewById(R.id.tvLoanAmount);
+            btnCall = v.findViewById(R.id.btnCall);
+            btnWhatsApp = v.findViewById(R.id.btnWhatsApp);
         }
     }
 }
