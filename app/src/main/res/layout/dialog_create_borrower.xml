@@ -2,14 +2,15 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="#1E293B"
     android:orientation="vertical"
     android:padding="20dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Create Borrower Login"
-        android:textColor="@color/text_main"
+        android:text="Create Borrower Account"
+        android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -22,8 +23,9 @@
         android:hint="Borrower Mobile Number"
         android:inputType="phone"
         android:paddingHorizontal="14dp"
-        android:textColor="@color/text_main"
-        android:textColorHint="@color/text_muted" />
+        android:textColor="#FFFFFF"
+        android:textColorHint="#94A3B8"
+        android:textSize="14sp" />
 
     <EditText
         android:id="@+id/etBorrowerPassword"
@@ -31,11 +33,12 @@
         android:layout_height="48dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/edittext_bg"
-        android:hint="Set Password"
-        android:inputType="text"
+        android:hint="Initial Password"
+        android:inputType="textPassword"
         android:paddingHorizontal="14dp"
-        android:textColor="@color/text_main"
-        android:textColorHint="@color/text_muted" />
+        android:textColor="#FFFFFF"
+        android:textColorHint="#94A3B8"
+        android:textSize="14sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -43,24 +46,28 @@
         android:layout_marginTop="18dp"
         android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnCreateId"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:layout_marginEnd="6dp"
             android:layout_weight="1"
-            android:backgroundTint="@color/brand_primary"
+            android:backgroundTint="#2563EB"
             android:text="Create ID"
-            android:textSize="12sp" />
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
+        <Button
             android:id="@+id/btnSendWhatsApp"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="44dp"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
-            android:backgroundTint="#25D366"
-            android:text="Send WhatsApp"
-            android:textSize="12sp" />
+            android:backgroundTint="#10B981"
+            android:text="Send to WA"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>
