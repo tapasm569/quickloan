@@ -36,7 +36,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_payment_history);
 
-        // Formats header badge as DD-MM-YYYY
         todayIndianDate = DateHelper.getTodayDate();
 
         tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
@@ -87,7 +86,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     }
 
     private void loadSlateLedgerData(Map<String, String> phoneToName) {
-        // Query matching both Indian DD-MM-YYYY and legacy YYYY-MM-DD
         Request txReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc")
                 .addHeader("apikey", API_KEY)
