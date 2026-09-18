@@ -48,9 +48,10 @@ public class CustomerProfileActivity extends AppCompatActivity {
         }
 
         final String activePhone = phone;
+        final String customerName = name;
 
         Map<String, Object> map = new HashMap<>();
-        map.put("name", name);
+        map.put("name", customerName);
         map.put("dob", dob);
         map.put("village", vill);
         map.put("post_office", po);
@@ -76,17 +77,23 @@ public class CustomerProfileActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                final String resBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        // Persist complete session
+                        // 1. Save customer name in local session
                         SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
                         prefs.edit()
                                 .putString("USER_ROLE", "CUSTOMER")
                                 .putString("USER_PHONE", activePhone)
                                 .putString("CUSTOMER_PHONE", activePhone)
+                                .putString("CUSTOMER_NAME", customerName)
                                 .putBoolean("IS_PROFILE_COMPLETED", true)
                                 .apply();
+
+                        // 2. Cascade update name into loans table
+                        syncCustomerNameToLoans(activePhone, customerName);
+
+                        // 3. Cascade update name into loan_transactions table
+                        syncCustomerNameToTransactions(activePhone, customerName);
 
                         Toast.makeText(CustomerProfileActivity.this, "Profile Saved!", Toast.LENGTH_SHORT).show();
 
@@ -95,10 +102,42 @@ public class CustomerProfileActivity extends AppCompatActivity {
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(CustomerProfileActivity.this, "Failed (" + response.code() + "): " + resBody, Toast.LENGTH_LONG).show();
+                        Toast.makeText(CustomerProfileActivity.this, "Failed (" + response.code() + ")", Toast.LENGTH_LONG).show();
                     }
                 });
             }
+        });
+    }
+
+    private void syncCustomerNameToLoans(String phone, String name) {
+        Map<String, Object> update = new HashMap<>();
+        update.put("name", name);
+        RequestBody body = RequestBody.create(gson.toJson(update), MediaType.get("application/json"));
+        Request req = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + phone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .patch(body)
+                .build();
+        client.newCall(req).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {}
+            @Override public void onResponse(Call call, Response response) {}
+        });
+    }
+
+    private void syncCustomerNameToTransactions(String phone, String name) {
+        Map<String, Object> update = new HashMap<>();
+        update.put("customer_name", name);
+        RequestBody body = RequestBody.create(gson.toJson(update), MediaType.get("application/json"));
+        Request req = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + phone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .patch(body)
+                .build();
+        client.newCall(req).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {}
+            @Override public void onResponse(Call call, Response response) {}
         });
     }
 }
