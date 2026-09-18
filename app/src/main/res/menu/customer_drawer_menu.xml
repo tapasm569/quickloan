@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/nav_home"
-        android:title="Home" />
+        android:id="@+id/nav_update_details"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="Update Personal Details" />
+
+    <item
+        android:id="@+id/nav_reset_password"
+        android:icon="@android:drawable/ic_lock_idle_lock"
+        android:title="Reset Password" />
+
+    <item
+        android:id="@+id/nav_help"
+        android:icon="@android:drawable/ic_menu_help"
+        android:title="Help" />
+
     <item
         android:id="@+id/nav_logout"
+        android:icon="@android:drawable/ic_lock_power_off"
         android:title="Logout" />
 </menu>
