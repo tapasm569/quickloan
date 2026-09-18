@@ -5,14 +5,15 @@
 
     <application
         android:allowBackup="true"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.QuickLoan">
 
-        <!-- Login Screen (Launcher) -->
+        <!-- Splash Screen (Now Launcher) -->
         <activity
-            android:name=".LoginActivity"
+            android:name=".SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -20,11 +21,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Lender Activities -->
+        <!-- Main Flow -->
+        <activity android:name=".LoginActivity" />
         <activity android:name=".LenderMainActivity" />
         <activity android:name=".MasterActivity" />
-
-        <!-- Customer Activities -->
         <activity android:name=".CustomerProfileActivity" />
         <activity android:name=".CustomerMainActivity" />
     </application>
