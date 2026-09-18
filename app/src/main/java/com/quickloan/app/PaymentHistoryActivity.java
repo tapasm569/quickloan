@@ -14,6 +14,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -23,21 +24,29 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
     private RecyclerView rv;
+    private TextView tvEmpty;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_master);
+        setContentView(R.layout.activity_simple_list);
 
-        ((TextView) findViewById(android.R.id.text1 != 0 ? android.R.id.text1 : R.id.rvMasterCustomers)).setText("Transaction Ledger & History");
-        rv = findViewById(R.id.rvMasterCustomers);
+        TextView tvTitle = findViewById(R.id.tvListHeaderTitle);
+        tvTitle.setText("Transaction Ledger & History");
+        tvEmpty = findViewById(R.id.tvEmptyMessage);
+        rv = findViewById(R.id.rvSimpleList);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        String phone = getIntent().getStringExtra("CUSTOMER_PHONE");
-        String url = (phone != null && !phone.isEmpty()) ?
-                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + phone + "&order=id.desc" :
+        String customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+
+        String url = (customerPhone != null && !customerPhone.isEmpty()) ?
+                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + customerPhone + "&order=id.desc" :
                 "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc";
 
+        loadHistory(url);
+    }
+
+    private void loadHistory(String url) {
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("apikey", API_KEY)
@@ -46,39 +55,55 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {}
+            @Override public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
+            }
+
             @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) return;
-                String body = response.body().string();
+                String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
                 List<Map<String, Object>> txs = gson.fromJson(body, type);
+                if (txs == null) txs = new ArrayList<>();
 
-                runOnUiThread(() -> rv.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-                    @NonNull
-                    @Override
-                    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                        View v = LayoutInflater.from(parent.getContext()).inflate(android.R.layout.simple_list_item_2, parent, false);
-                        return new RecyclerView.ViewHolder(v) {};
+                List<Map<String, Object>> finalList = txs;
+                runOnUiThread(() -> {
+                    if (finalList.isEmpty()) {
+                        tvEmpty.setVisibility(View.VISIBLE);
+                        return;
                     }
+                    tvEmpty.setVisibility(View.GONE);
+                    rv.setAdapter(new RecyclerView.Adapter<RecordVH>() {
+                        @NonNull
+                        @Override public RecordVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_simple_record, parent, false);
+                            return new RecordVH(v);
+                        }
 
-                    @Override
-                    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                        Map<String, Object> item = txs.get(position);
-                        TextView t1 = holder.itemView.findViewById(android.R.id.text1);
-                        TextView t2 = holder.itemView.findViewById(android.R.id.text2);
+                        @Override public void onBindViewHolder(@NonNull RecordVH holder, int position) {
+                            Map<String, Object> item = finalList.get(position);
+                            String type = String.valueOf(item.get("payment_type"));
+                            double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
+                            String date = String.valueOf(item.get("transaction_date"));
+                            String mode = String.valueOf(item.get("payment_mode"));
 
-                        String type = String.valueOf(item.get("payment_type"));
-                        double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
-                        String date = String.valueOf(item.get("transaction_date"));
-                        String mode = String.valueOf(item.get("payment_mode"));
+                            holder.t1.setText(("DISBURSEMENT".equals(type) ? "💸 Received Loan: ₹" : "💳 Paid EMI: ₹") + (int)amt);
+                            holder.t2.setText("Date: " + date + " | Mode: " + mode + " | Phone: " + item.get("customer_phone"));
+                        }
 
-                        t1.setText((type.equals("DISBURSEMENT") ? "💸 Received Loan: ₹" : "💳 Paid EMI: ₹") + (int)amt);
-                        t2.setText("Date: " + date + " | Mode: " + mode + " | Phone: " + item.get("customer_phone"));
-                    }
-
-                    @Override public int getItemCount() { return txs != null ? txs.size() : 0; }
-                }));
+                        @Override public int getItemCount() { return finalList.size(); }
+                    });
+                });
             }
         });
+    }
+
+    static class RecordVH extends RecyclerView.ViewHolder {
+        TextView t1, t2;
+        RecordVH(@NonNull View itemView) {
+            super(itemView);
+            t1 = itemView.findViewById(R.id.tvRecordTitle);
+            t2 = itemView.findViewById(R.id.tvRecordSubtitle);
+        }
     }
 }
