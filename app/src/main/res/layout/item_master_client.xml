@@ -93,7 +93,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Tap for Profile hint & Action Buttons -->
+        <!-- Tap for Profile hint & Actions Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -105,32 +105,47 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Tap card to view profile ➔"
+                android:text="Tap to view profile ➔"
                 android:textColor="#64748B"
                 android:textSize="11sp" />
 
+            <!-- Call Button -->
             <Button
                 android:id="@+id/btnMasterCall"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="5dp"
                 android:backgroundTint="#2563EB"
                 android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="10dp"
                 android:text="📞 Call"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp" />
 
+            <!-- WhatsApp Button -->
             <Button
                 android:id="@+id/btnMasterWhatsApp"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
+                android:layout_marginEnd="5dp"
                 android:backgroundTint="#10B981"
                 android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="💬 WhatsApp"
+                android:paddingHorizontal="10dp"
+                android:text="💬 WA"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp" />
+
+            <!-- Delete Customer Button -->
+            <Button
+                android:id="@+id/btnMasterDelete"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#EF4444"
+                android:minWidth="0dp"
+                android:paddingHorizontal="10dp"
+                android:text="🗑️"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
