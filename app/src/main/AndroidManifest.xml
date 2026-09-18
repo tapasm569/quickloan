@@ -1,4 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -8,6 +10,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuickLoan">
 
+        <!-- Launcher -->
         <activity
             android:name=".LoginActivity"
             android:exported="true">
@@ -17,9 +20,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Lender Activities -->
         <activity android:name=".LenderMainActivity" />
         <activity android:name=".MasterActivity" />
+
+        <!-- Customer Activities (MUST BE LISTED HERE) -->
         <activity android:name=".CustomerProfileActivity" />
         <activity android:name=".CustomerMainActivity" />
     </application>
+
 </manifest>
