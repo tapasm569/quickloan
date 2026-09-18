@@ -49,17 +49,23 @@ public class AccountDashboardFragment extends Fragment {
 
         // 1. Create ID Button
         dialogView.findViewById(R.id.btnCreateId).setOnClickListener(v -> {
-            String phone = etPhone.getText().toString().trim();
+            String rawPhone = etPhone.getText().toString().trim();
             String pass = etPass.getText().toString().trim();
 
-            if (phone.isEmpty() || pass.isEmpty()) {
+            if (rawPhone.isEmpty() || pass.isEmpty()) {
                 Toast.makeText(getContext(), "Enter phone and password", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+            // Normalize to 10 digits
+            String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
+            if (cleanPhone.length() > 10 && cleanPhone.startsWith("91")) {
+                cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
+            }
+
             Map<String, Object> map = new HashMap<>();
             map.put("name", "New Borrower");
-            map.put("phone", phone);
+            map.put("phone", cleanPhone);
             map.put("password", pass);
             map.put("lender_phone", "9932655607");
             map.put("is_profile_completed", 0);
@@ -69,22 +75,24 @@ public class AccountDashboardFragment extends Fragment {
                     .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
                     .addHeader("apikey", API_KEY)
                     .addHeader("Authorization", "Bearer " + API_KEY)
+                    .addHeader("Prefer", "return=representation")
                     .post(body)
                     .build();
 
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show());
+                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Network error: " + e.getMessage(), Toast.LENGTH_LONG).show());
                 }
 
                 @Override
-                public void onResponse(Call call, Response response) {
+                public void onResponse(Call call, Response response) throws IOException {
+                    String respBody = response.body() != null ? response.body().string() : "";
                     requireActivity().runOnUiThread(() -> {
                         if (response.isSuccessful()) {
-                            Toast.makeText(getContext(), "Borrower Login ID Created!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(), "ID created successfully for " + cleanPhone, Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(getContext(), "Failed: Mobile number already exists", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getContext(), "Failed (" + response.code() + "): " + respBody, Toast.LENGTH_LONG).show();
                         }
                     });
                 }
@@ -93,22 +101,22 @@ public class AccountDashboardFragment extends Fragment {
 
         // 2. Send to WhatsApp Button
         dialogView.findViewById(R.id.btnSendWhatsApp).setOnClickListener(v -> {
-            String phone = etPhone.getText().toString().trim();
+            String rawPhone = etPhone.getText().toString().trim();
             String pass = etPass.getText().toString().trim();
 
-            if (phone.isEmpty() || pass.isEmpty()) {
+            if (rawPhone.isEmpty() || pass.isEmpty()) {
                 Toast.makeText(getContext(), "Fill phone and password first", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             try {
-                String cleanPhone = phone.replaceAll("[^0-9]", "");
+                String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
                 if (cleanPhone.length() == 10) cleanPhone = "91" + cleanPhone;
 
                 String msg = "Hello, your Quick Loan account has been created!\n\n"
-                        + "📱 Login Mobile: " + phone + "\n"
+                        + "📱 Login Mobile: " + rawPhone + "\n"
                         + "🔑 Password: " + pass + "\n\n"
-                        + "Please open the Quick Loan app and complete your profile.";
+                        + "Please open the Quick Loan app and log in.";
 
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + URLEncoder.encode(msg, "UTF-8")));
@@ -120,4 +128,4 @@ public class AccountDashboardFragment extends Fragment {
 
         dialog.show();
     }
-}
+            }
