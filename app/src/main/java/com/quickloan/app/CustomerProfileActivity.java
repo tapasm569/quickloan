@@ -1,6 +1,7 @@
 package com.quickloan.app;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -24,6 +25,9 @@ public class CustomerProfileActivity extends AppCompatActivity {
         setContentView(R.layout.activity_customer_profile);
 
         phone = getIntent().getStringExtra("CUSTOMER_PHONE");
+        if (phone == null || phone.isEmpty()) {
+            phone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
+        }
 
         findViewById(R.id.btnSubmitProfile).setOnClickListener(v -> submitProfile());
     }
@@ -39,9 +43,11 @@ public class CustomerProfileActivity extends AppCompatActivity {
         String ref = ((EditText) findViewById(R.id.etRefContact)).getText().toString().trim();
 
         if (name.isEmpty() || vill.isEmpty() || pin.isEmpty()) {
-            Toast.makeText(this, "Name, Village, and Pin are required", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Name, Village, and PIN Code are required", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        final String activePhone = phone;
 
         Map<String, Object> map = new HashMap<>();
         map.put("name", name);
@@ -56,7 +62,7 @@ public class CustomerProfileActivity extends AppCompatActivity {
 
         RequestBody body = RequestBody.create(gson.toJson(map), MediaType.get("application/json"));
         Request request = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + phone)
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + activePhone)
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .patch(body)
@@ -65,23 +71,29 @@ public class CustomerProfileActivity extends AppCompatActivity {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(CustomerProfileActivity.this, "Network error", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(CustomerProfileActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
 
             @Override
-            public void onResponse(Call call, Response response) {
+            public void onResponse(Call call, Response response) throws IOException {
+                final String resBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
+                        // Persist session
+                        SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
+                        prefs.edit().putString("CUSTOMER_PHONE", activePhone).apply();
+
                         Toast.makeText(CustomerProfileActivity.this, "Profile Saved!", Toast.LENGTH_SHORT).show();
+
                         Intent intent = new Intent(CustomerProfileActivity.this, CustomerMainActivity.class);
-                        intent.putExtra("CUSTOMER_PHONE", phone);
+                        intent.putExtra("CUSTOMER_PHONE", activePhone);
                         startActivity(intent);
                         finish();
                     } else {
-                        Toast.makeText(CustomerProfileActivity.this, "Failed to save details", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(CustomerProfileActivity.this, "Failed (" + response.code() + "): " + resBody, Toast.LENGTH_LONG).show();
                     }
                 });
             }
         });
     }
-}
+                      }
