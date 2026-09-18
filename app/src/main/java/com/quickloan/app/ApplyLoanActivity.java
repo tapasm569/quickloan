@@ -27,7 +27,7 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private EditText etAmount, etDays, etNote;
     private TextView tvRate, tvTotal, tvDailyEmi;
     private ChipGroup chipGroupAmount, chipGroupTenure;
-    private String customerPhone;
+    private String customerPhone = "";
 
     private double selectedPrincipal = 10000;
     private int selectedDays = 30;
@@ -63,7 +63,6 @@ public class ApplyLoanActivity extends AppCompatActivity {
             else if (checkedId == R.id.chip20k) selectedPrincipal = 20000;
             else if (checkedId == R.id.chip30k) selectedPrincipal = 30000;
             else if (checkedId == R.id.chip50k) selectedPrincipal = 50000;
-            etAmount.setText("");
             recalculate();
         });
 
@@ -72,7 +71,6 @@ public class ApplyLoanActivity extends AppCompatActivity {
             else if (checkedId == R.id.chip60d) selectedDays = 60;
             else if (checkedId == R.id.chip90d) selectedDays = 90;
             else if (checkedId == R.id.chip180d) selectedDays = 180;
-            etDays.setText("");
             recalculate();
         });
 
@@ -106,17 +104,11 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private void recalculate() {
         if (selectedPrincipal <= 0 || selectedDays <= 0) return;
 
-        // Tiered Annual Interest Rules
         double annualRate;
-        if (selectedPrincipal <= 10000) {
-            annualRate = 10.0;
-        } else if (selectedPrincipal <= 20000) {
-            annualRate = 15.0;
-        } else if (selectedPrincipal <= 30000) {
-            annualRate = 20.0;
-        } else {
-            annualRate = 30.0;
-        }
+        if (selectedPrincipal <= 10000) annualRate = 10.0;
+        else if (selectedPrincipal <= 20000) annualRate = 15.0;
+        else if (selectedPrincipal <= 30000) annualRate = 20.0;
+        else annualRate = 30.0;
 
         double interestAmt = (selectedPrincipal * annualRate * selectedDays) / (365.0 * 100.0);
         double totalPayable = selectedPrincipal + interestAmt;
@@ -128,8 +120,13 @@ public class ApplyLoanActivity extends AppCompatActivity {
     }
 
     private void submitApplication() {
+        if (customerPhone == null || customerPhone.isEmpty()) {
+            Toast.makeText(this, "Session expired, please login again", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         if (selectedPrincipal <= 0 || selectedDays <= 0) {
-            Toast.makeText(this, "Enter valid loan amount and days", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please select an amount and tenure", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -168,21 +165,23 @@ public class ApplyLoanActivity extends AppCompatActivity {
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
-                .addHeader("Prefer", "return=minimal")
+                .addHeader("Prefer", "return=representation")
                 .post(body)
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(ApplyLoanActivity.this, "Network Error", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(ApplyLoanActivity.this, "Network Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
-            @Override public void onResponse(Call call, Response response) {
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                final String resBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        Toast.makeText(ApplyLoanActivity.this, "Loan application submitted for lender review!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(ApplyLoanActivity.this, "Loan application sent to lender!", Toast.LENGTH_LONG).show();
                         finish();
                     } else {
-                        Toast.makeText(ApplyLoanActivity.this, "Failed to apply: " + response.code(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ApplyLoanActivity.this, "Failed (" + response.code() + "): " + resBody, Toast.LENGTH_LONG).show();
                     }
                 });
             }
