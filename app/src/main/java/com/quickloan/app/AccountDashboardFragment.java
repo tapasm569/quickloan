@@ -30,38 +30,40 @@ public class AccountDashboardFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_account_dashboard, container, false);
 
-        // 1. Transfer Money
+        // 1. Transfer Money (Disbursement)
         view.findViewById(R.id.cardTransferMoney).setOnClickListener(v -> 
             startActivity(new Intent(getContext(), TransferMoneyActivity.class))
         );
 
-        // 2. Approve Loan
+        // 2. Create Borrower Account Dialog
+        view.findViewById(R.id.cardCreateAccount).setOnClickListener(v -> showCreateBorrowerDialog());
+
+        // 3. Approve Loan
         view.findViewById(R.id.cardApproveLoan).setOnClickListener(v -> 
             startActivity(new Intent(getContext(), ApproveLoanActivity.class))
         );
 
-        // 3. Create Account
-        view.findViewById(R.id.cardCreateAccount).setOnClickListener(v -> showCreateBorrowerDialog());
+        // 4. Today's Due
+        view.findViewById(R.id.cardTodaysDue).setOnClickListener(v -> 
+            startActivity(new Intent(getContext(), TodaysDueActivity.class))
+        );
 
-        // 4. Master
+        // 5. Today's Payment
+        view.findViewById(R.id.cardTodaysPayment).setOnClickListener(v -> 
+            startActivity(new Intent(getContext(), TodaysPaymentActivity.class))
+        );
+
+        // 6. Master (Client Directory)
         view.findViewById(R.id.cardMaster).setOnClickListener(v -> 
             startActivity(new Intent(getContext(), MasterActivity.class))
         );
 
-        // 5. Payment History & Ledger Book
+        // 7. Payment History & Ledger Book
         view.findViewById(R.id.cardPaymentHistory).setOnClickListener(v -> 
             startActivity(new Intent(getContext(), PaymentHistoryActivity.class))
         );
         view.findViewById(R.id.cardLedgerBook).setOnClickListener(v -> 
             startActivity(new Intent(getContext(), PaymentHistoryActivity.class))
-        );
-
-        // 6. Today's Due & Payment
-        view.findViewById(R.id.cardTodaysDue).setOnClickListener(v -> 
-            Toast.makeText(getContext(), "Viewing Today's Due in Pending Tab", Toast.LENGTH_SHORT).show()
-        );
-        view.findViewById(R.id.cardTodaysPayment).setOnClickListener(v -> 
-            Toast.makeText(getContext(), "Viewing Today's Collections in Payment Tab", Toast.LENGTH_SHORT).show()
         );
 
         return view;
@@ -72,15 +74,25 @@ public class AccountDashboardFragment extends Fragment {
         EditText etPhone = dialogView.findViewById(R.id.etBorrowerPhone);
         EditText etPass = dialogView.findViewById(R.id.etBorrowerPassword);
 
-        AlertDialog dialog = new AlertDialog.Builder(requireContext()).setView(dialogView).create();
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
 
+        // 1. Create ID Button
         dialogView.findViewById(R.id.btnCreateId).setOnClickListener(v -> {
             String rawPhone = etPhone.getText().toString().trim();
             String pass = etPass.getText().toString().trim();
-            if (rawPhone.isEmpty() || pass.isEmpty()) return;
 
+            if (rawPhone.isEmpty() || pass.isEmpty()) {
+                Toast.makeText(getContext(), "Enter phone and password", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Normalize to 10-digit mobile number
             String tempPhone = rawPhone.replaceAll("[^0-9]", "");
-            if (tempPhone.length() > 10 && tempPhone.startsWith("91")) tempPhone = tempPhone.substring(tempPhone.length() - 10);
+            if (tempPhone.length() > 10 && tempPhone.startsWith("91")) {
+                tempPhone = tempPhone.substring(tempPhone.length() - 10);
+            }
             final String finalPhone = tempPhone;
 
             Map<String, Object> map = new HashMap<>();
@@ -91,29 +103,66 @@ public class AccountDashboardFragment extends Fragment {
             map.put("is_profile_completed", 0);
 
             RequestBody body = RequestBody.create(gson.toJson(map), MediaType.get("application/json"));
-            Request req = new Request.Builder()
+            Request request = new Request.Builder()
                     .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
                     .addHeader("apikey", API_KEY)
                     .addHeader("Authorization", "Bearer " + API_KEY)
+                    .addHeader("Prefer", "return=representation")
                     .post(body)
                     .build();
 
-            client.newCall(req).enqueue(new Callback() {
-                @Override public void onFailure(Call call, IOException e) {}
-                @Override public void onResponse(Call call, Response response) {
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
                     if (getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "ID created for " + finalPhone, Toast.LENGTH_SHORT).show());
+                        requireActivity().runOnUiThread(() -> 
+                            Toast.makeText(getContext(), "Network error: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                        );
+                    }
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String respBody = response.body() != null ? response.body().string() : "";
+                    if (getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(getContext(), "ID created successfully for " + finalPhone, Toast.LENGTH_SHORT).show();
+                                dialog.dismiss();
+                            } else {
+                                Toast.makeText(getContext(), "Failed (" + response.code() + "): " + respBody, Toast.LENGTH_LONG).show();
+                            }
+                        });
                     }
                 }
             });
         });
 
+        // 2. Send to WhatsApp Button
         dialogView.findViewById(R.id.btnSendWhatsApp).setOnClickListener(v -> {
-            String phone = etPhone.getText().toString().replaceAll("[^0-9]", "");
-            if (phone.length() == 10) phone = "91" + phone;
-            String msg = "Hello, your Quick Loan account has been created!\nMobile: " + etPhone.getText() + "\nPassword: " + etPass.getText();
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + phone + "&text=" + URLEncoder.encode(msg)));
-            startActivity(intent);
+            String rawPhone = etPhone.getText().toString().trim();
+            String pass = etPass.getText().toString().trim();
+
+            if (rawPhone.isEmpty() || pass.isEmpty()) {
+                Toast.makeText(getContext(), "Fill phone and password first", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
+                if (cleanPhone.length() == 10) cleanPhone = "91" + cleanPhone;
+
+                String msg = "Hello, your Quick Loan account has been created!\n\n"
+                        + "📱 Login Mobile: " + rawPhone + "\n"
+                        + "🔑 Password: " + pass + "\n\n"
+                        + "Please open the Quick Loan app and log in.";
+
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + URLEncoder.encode(msg, "UTF-8")));
+                startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "WhatsApp error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
 
         dialog.show();
