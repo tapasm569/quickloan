@@ -11,6 +11,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 
@@ -36,16 +37,23 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void performLogin() {
-        String phone = etPhone.getText().toString().trim();
+        String rawPhone = etPhone.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        if (phone.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Enter mobile number and password", Toast.LENGTH_SHORT).show();
+        if (rawPhone.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please enter mobile number and password", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 1. Owner / Lender verification
-        if (phone.equals(LENDER_PHONE) && password.equals(LENDER_PASS)) {
+        // Clean mobile number (extract last 10 digits)
+        String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
+        if (cleanPhone.length() > 10 && cleanPhone.startsWith("91")) {
+            cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
+        }
+
+        // 1. Owner / Lender Verification
+        if (cleanPhone.equals(LENDER_PHONE) && password.equals(LENDER_PASS)) {
+            Toast.makeText(this, "Welcome, Lender!", Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(this, LenderMainActivity.class);
             intent.putExtra("LENDER_PHONE", LENDER_PHONE);
             startActivity(intent);
@@ -53,72 +61,79 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // 2. Customer verification
-        String url = "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." 
-                + phone + "&password=eq." + password;
+        // 2. Customer Verification with URL Encoding
+        try {
+            String encodedPass = URLEncoder.encode(password, "UTF-8");
+            String url = "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." 
+                    + cleanPhone + "&password=eq." + encodedPass;
 
-        Request request = new Request.Builder()
-                .url(url)
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .get()
-                .build();
+            Request request = new Request.Builder()
+                    .url(url)
+                    .addHeader("apikey", API_KEY)
+                    .addHeader("Authorization", "Bearer " + API_KEY)
+                    .get()
+                    .build();
 
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Network connection error", Toast.LENGTH_SHORT).show());
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String body = response.body().string();
-                runOnUiThread(() -> {
-                    try {
-                        if (!response.isSuccessful() || body.equals("[]") || body.trim().isEmpty()) {
-                            Toast.makeText(LoginActivity.this, "Invalid mobile number or password", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        Type listType = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                        List<Map<String, Object>> customers = gson.fromJson(body, listType);
-
-                        if (customers == null || customers.isEmpty()) {
-                            Toast.makeText(LoginActivity.this, "Customer profile not found", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        Map<String, Object> user = customers.get(0);
-
-                        // Save session
-                        SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
-                        prefs.edit().putString("CUSTOMER_PHONE", phone).apply();
-
-                        // Safe profile-completion check
-                        boolean isProfileComplete = false;
-                        Object completedObj = user.get("is_profile_completed");
-                        if (completedObj != null) {
-                            String s = completedObj.toString().trim();
-                            if (s.equals("1") || s.equals("1.0") || s.equalsIgnoreCase("true")) {
-                                isProfileComplete = true;
-                            }
-                        }
-
-                        Intent intent;
-                        if (isProfileComplete) {
-                            intent = new Intent(LoginActivity.this, CustomerMainActivity.class);
-                        } else {
-                            intent = new Intent(LoginActivity.this, CustomerProfileActivity.class);
-                        }
-                        intent.putExtra("CUSTOMER_PHONE", phone);
-                        startActivity(intent);
-                        finish();
-
-                    } catch (Exception e) {
-                        Toast.makeText(LoginActivity.this, "Error logging in: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    }
-                });
-            }
-        });
-    }
+            String finalPhone = cleanPhone;
+            client.newCall(request).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> Toast.makeText(LoginActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_LONG).show());
                 }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    String body = response.body() != null ? response.body().string() : "";
+
+                    runOnUiThread(() -> {
+                        try {
+                            if (!response.isSuccessful()) {
+                                Toast.makeText(LoginActivity.this, "Database error: " + response.code() + " " + body, Toast.LENGTH_LONG).show();
+                                return;
+                            }
+
+                            Type listType = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                            List<Map<String, Object>> customers = gson.fromJson(body, listType);
+
+                            if (customers == null || customers.isEmpty()) {
+                                Toast.makeText(LoginActivity.this, "No matching customer found for " + finalPhone, Toast.LENGTH_LONG).show();
+                                return;
+                            }
+
+                            Map<String, Object> user = customers.get(0);
+
+                            // Save session
+                            SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
+                            prefs.edit().putString("CUSTOMER_PHONE", finalPhone).apply();
+
+                            // Verify profile status
+                            boolean isProfileComplete = false;
+                            Object completedObj = user.get("is_profile_completed");
+                            if (completedObj != null) {
+                                String s = completedObj.toString().trim();
+                                if (s.equals("1") || s.equals("1.0") || s.equalsIgnoreCase("true")) {
+                                    isProfileComplete = true;
+                                }
+                            }
+
+                            Intent intent;
+                            if (isProfileComplete) {
+                                intent = new Intent(LoginActivity.this, CustomerMainActivity.class);
+                            } else {
+                                intent = new Intent(LoginActivity.this, CustomerProfileActivity.class);
+                            }
+                            intent.putExtra("CUSTOMER_PHONE", finalPhone);
+                            startActivity(intent);
+                            finish();
+
+                        } catch (Exception e) {
+                            Toast.makeText(LoginActivity.this, "Parse error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            });
+        } catch (Exception e) {
+            Toast.makeText(this, "Encoding error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+                                    }
