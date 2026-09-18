@@ -39,7 +39,6 @@ public class PendingTabFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.activity_simple_list, container, false);
 
-        // Header Title updated to "Due Payment"
         TextView tvHeader = view.findViewById(R.id.tvListHeaderTitle);
         if (tvHeader != null) {
             tvHeader.setText("Due Payment");
@@ -60,9 +59,40 @@ public class PendingTabFragment extends Fragment {
     }
 
     private void loadDuePayments() {
+        // Fetch real names from customers table
+        Request custReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(custReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                fetchDueLoans(new HashMap<>());
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                Map<String, String> phoneToName = new HashMap<>();
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
+                    if (customers != null) {
+                        for (Map<String, Object> c : customers) {
+                            String p = String.valueOf(c.get("phone"));
+                            String n = c.get("name") != null ? String.valueOf(c.get("name")) : "";
+                            if (!n.isEmpty()) phoneToName.put(p, n);
+                        }
+                    }
+                }
+                fetchDueLoans(phoneToName);
+            }
+        });
+    }
+
+    private void fetchDueLoans(Map<String, String> phoneToName) {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        // 1. Fetch payments made today to deduct from daily due
         Request txReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + today + "&payment_type=eq.DAILY_EMI")
                 .addHeader("apikey", API_KEY)
@@ -91,13 +121,12 @@ public class PendingTabFragment extends Fragment {
                     }
                 }
 
-                // 2. Fetch active loans
-                fetchActiveLoans(todayPaidMap);
+                fetchActiveLoans(todayPaidMap, phoneToName);
             }
         });
     }
 
-    private void fetchActiveLoans(Map<Integer, Double> todayPaidMap) {
+    private void fetchActiveLoans(Map<Integer, Double> todayPaidMap, Map<String, String> phoneToName) {
         Request loanReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.DISBURSED&is_paid=eq.0&order=id.desc")
                 .addHeader("apikey", API_KEY)
@@ -124,7 +153,6 @@ public class PendingTabFragment extends Fragment {
                     double paidToday = todayPaidMap.getOrDefault(loanId, 0.0);
                     double effectiveDueToday = Math.max(0.0, emi - paidToday);
 
-                    // If borrower still has due today, include them
                     if (effectiveDueToday > 0) {
                         l.put("current_today_due", effectiveDueToday);
                         dueList.add(l);
@@ -135,7 +163,7 @@ public class PendingTabFragment extends Fragment {
                     requireActivity().runOnUiThread(() -> {
                         if (dueList.isEmpty()) {
                             tvEmpty.setVisibility(View.VISIBLE);
-                            tvEmpty.setText("No pending dues for today! All borrowers paid.");
+                            tvEmpty.setText("All daily dues for today have been paid!");
                         } else {
                             tvEmpty.setVisibility(View.GONE);
                         }
@@ -150,8 +178,12 @@ public class PendingTabFragment extends Fragment {
                             @Override public void onBindViewHolder(@NonNull DueItemVH holder, int position) {
                                 Map<String, Object> l = dueList.get(position);
                                 String phone = String.valueOf(l.get("phone"));
-                                String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
-                                if (name.startsWith("Borrower (")) name = phone;
+
+                                // Prioritize real registered customer name
+                                String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
+                                if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
+                                    name = phone;
+                                }
 
                                 double todaysDue = l.get("current_today_due") != null ? ((Double) l.get("current_today_due")) : 0;
                                 double total = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
@@ -163,17 +195,16 @@ public class PendingTabFragment extends Fragment {
                                 holder.tvTodayDue.setText(String.format(Locale.getDefault(), "₹%.0f", todaysDue));
                                 holder.tvRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", remainingBalance));
 
-                                // Call
                                 final String dialPhone = phone;
+                                final String finalName = name;
                                 holder.btnCall.setOnClickListener(v -> 
                                     startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + dialPhone)))
                                 );
 
-                                // WhatsApp
                                 holder.btnWhatsApp.setOnClickListener(v -> {
                                     String clean = dialPhone.replaceAll("[^0-9]", "");
                                     if (clean.length() == 10) clean = "91" + clean;
-                                    String msg = "Hello " + holder.tvName.getText() + ", your daily EMI of ₹" + (int)todaysDue + " is due today. Please pay today.";
+                                    String msg = "Hello " + finalName + ", your daily EMI of ₹" + (int)todaysDue + " is due today. Please pay to keep your account current.";
                                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean + "&text=" + Uri.encode(msg))));
                                 });
                             }
