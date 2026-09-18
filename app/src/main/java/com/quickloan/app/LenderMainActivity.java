@@ -3,12 +3,9 @@ package com.quickloan.app;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -35,15 +32,12 @@ public class LenderMainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_lender_main);
 
-        Toolbar toolbar = findViewById(R.id.toolbarLender);
-        setSupportActionBar(toolbar);
-
         drawerLayout = findViewById(R.id.lender_drawer_layout);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawerLayout, toolbar, android.R.string.ok, android.R.string.cancel);
-        toggle.getDrawerArrowDrawable().setColor(getResources().getColor(android.R.color.white));
-        drawerLayout.addDrawerListener(toggle);
-        toggle.syncState();
+
+        // Click right hamburger icon -> open right-hand drawer
+        findViewById(R.id.btnLenderRightHamburger).setOnClickListener(v -> 
+            drawerLayout.openDrawer(GravityCompat.END)
+        );
 
         viewPager = findViewById(R.id.viewPager);
         TabLayout tabLayout = findViewById(R.id.tabLayout);
@@ -67,15 +61,16 @@ public class LenderMainActivity extends AppCompatActivity {
             }
         });
 
-        // Attach stylish logos to tabs
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            tab.setIcon(tabIcons[position]);
-        }).attach();
+        // Set up tab logos
+        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> 
+            tab.setIcon(tabIcons[position])
+        ).attach();
 
-        // Hamburger Menu actions
+        // Right Drawer Menu actions
         NavigationView navView = findViewById(R.id.nav_view_lender);
         navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
+            drawerLayout.closeDrawer(GravityCompat.END);
 
             if (id == R.id.nav_lender_home) {
                 viewPager.setCurrentItem(0, true);
@@ -87,8 +82,6 @@ public class LenderMainActivity extends AppCompatActivity {
                 startActivity(intent);
                 finish();
             }
-
-            drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         });
     }
@@ -105,4 +98,4 @@ public class LenderMainActivity extends AppCompatActivity {
                 .setNegativeButton("Close", null)
                 .show();
     }
-                                              }
+}
