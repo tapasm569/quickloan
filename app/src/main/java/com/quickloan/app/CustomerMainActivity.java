@@ -41,50 +41,72 @@ public class CustomerMainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_customer_main);
 
         customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
-        if (customerPhone == null) {
+        if (customerPhone == null || customerPhone.isEmpty()) {
             customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
         }
 
         drawerLayout = findViewById(R.id.drawer_layout_customer);
         tvToolbarName = findViewById(R.id.tvToolbarCustomerName);
 
-        // Open right-hand drawer on hamburger button click
-        findViewById(R.id.btnRightHamburger).setOnClickListener(v -> 
-            drawerLayout.openDrawer(GravityCompat.END)
-        );
+        // Hamburger button listener
+        View btnHamburger = findViewById(R.id.btnRightHamburger);
+        if (btnHamburger != null && drawerLayout != null) {
+            btnHamburger.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.END));
+        }
 
         NavigationView navView = findViewById(R.id.nav_view_customer_right);
-        View headerView = navView.getHeaderView(0);
-        tvHeaderName = headerView.findViewById(R.id.tvHeaderCustomerName);
-        tvHeaderPhone = headerView.findViewById(R.id.tvHeaderCustomerPhone);
+        if (navView != null) {
+            View headerView = navView.getHeaderCount() > 0 ? navView.getHeaderView(0) : navView.inflateHeaderView(R.layout.nav_header_customer);
+            if (headerView != null) {
+                tvHeaderName = headerView.findViewById(R.id.tvHeaderCustomerName);
+                tvHeaderPhone = headerView.findViewById(R.id.tvHeaderCustomerPhone);
 
-        // Click customer header -> Show Full Personal Details
-        headerView.findViewById(R.id.headerCustomerProfile).setOnClickListener(v -> {
-            drawerLayout.closeDrawer(GravityCompat.END);
-            showPersonalDetailsDialog();
-        });
-
-        // Hamburger Menu Options
-        navView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
-            drawerLayout.closeDrawer(GravityCompat.END);
-
-            if (id == R.id.nav_update_details) {
-                showUpdateDetailsDialog();
-            } else if (id == R.id.nav_reset_password) {
-                showResetPasswordDialog();
-            } else if (id == R.id.nav_help) {
-                showHelpDialog();
-            } else if (id == R.id.nav_logout) {
-                performLogout();
+                View headerClickTarget = headerView.findViewById(R.id.headerCustomerProfile);
+                if (headerClickTarget != null) {
+                    headerClickTarget.setOnClickListener(v -> {
+                        if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+                        showPersonalDetailsDialog();
+                    });
+                }
             }
-            return true;
-        });
+
+            navView.setNavigationItemSelectedListener(item -> {
+                int id = item.getItemId();
+                if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+
+                if (id == R.id.nav_update_details) {
+                    showUpdateDetailsDialog();
+                } else if (id == R.id.nav_reset_password) {
+                    showResetPasswordDialog();
+                } else if (id == R.id.nav_help) {
+                    showHelpDialog();
+                } else if (id == R.id.nav_logout) {
+                    performLogout();
+                }
+                return true;
+            });
+        }
+
+        // Dashboard Card listeners
+        setCardListener(R.id.cardApplyLoan, "Open: Apply Loan");
+        setCardListener(R.id.cardApprovedDetails, "Open: Approved Loan Details");
+        setCardListener(R.id.cardDailyEmi, "Open: Pay Daily EMI");
+        setCardListener(R.id.cardCustHistory, "Open: Payment History");
+        setCardListener(R.id.cardCustLedger, "Open: Ledger Balance");
 
         fetchCustomerProfile();
     }
 
+    private void setCardListener(int viewId, String message) {
+        View card = findViewById(viewId);
+        if (card != null) {
+            card.setOnClickListener(v -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
+        }
+    }
+
     private void fetchCustomerProfile() {
+        if (customerPhone == null || customerPhone.isEmpty()) return;
+
         Request request = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + customerPhone)
                 .addHeader("apikey", API_KEY)
@@ -106,27 +128,28 @@ public class CustomerMainActivity extends AppCompatActivity {
                 if (list != null && !list.isEmpty()) {
                     customerData = list.get(0);
                     runOnUiThread(() -> {
-                        String name = String.valueOf(customerData.get("name"));
-                        tvToolbarName.setText(name);
-                        tvHeaderName.setText(name);
-                        tvHeaderPhone.setText("+91 " + customerPhone);
+                        String name = customerData.get("name") != null ? String.valueOf(customerData.get("name")) : "Customer";
+                        if (tvToolbarName != null) tvToolbarName.setText(name);
+                        if (tvHeaderName != null) tvHeaderName.setText(name);
+                        if (tvHeaderPhone != null) tvHeaderPhone.setText("+91 " + customerPhone);
                     });
                 }
             }
         });
     }
 
-    // 1. Show Personal Details
     private void showPersonalDetailsDialog() {
-        String details = "👤 Name: " + customerData.get("name") + "\n"
-                + "📅 DOB: " + customerData.get("dob") + "\n"
-                + "🏡 Village: " + customerData.get("village") + "\n"
-                + "📮 Post Office: " + customerData.get("post_office") + "\n"
-                + "👮 Police Station: " + customerData.get("police_station") + "\n"
-                + "📍 District: " + customerData.get("district") + "\n"
-                + "📌 PIN: " + customerData.get("pin_code") + "\n"
-                + "📞 Reference: " + customerData.get("reference_phone") + "\n"
-                + "💳 UPI ID: " + (customerData.get("upi_id") == null ? "Not set" : customerData.get("upi_id"));
+        if (isFinishing() || isDestroyed()) return;
+
+        String details = "👤 Name: " + (customerData.get("name") != null ? customerData.get("name") : "-") + "\n"
+                + "📅 DOB: " + (customerData.get("dob") != null ? customerData.get("dob") : "-") + "\n"
+                + "🏡 Village: " + (customerData.get("village") != null ? customerData.get("village") : "-") + "\n"
+                + "📮 Post Office: " + (customerData.get("post_office") != null ? customerData.get("post_office") : "-") + "\n"
+                + "👮 Police Station: " + (customerData.get("police_station") != null ? customerData.get("police_station") : "-") + "\n"
+                + "📍 District: " + (customerData.get("district") != null ? customerData.get("district") : "-") + "\n"
+                + "📌 PIN: " + (customerData.get("pin_code") != null ? customerData.get("pin_code") : "-") + "\n"
+                + "📞 Reference: " + (customerData.get("reference_phone") != null ? customerData.get("reference_phone") : "-") + "\n"
+                + "💳 UPI ID: " + (customerData.get("upi_id") != null ? customerData.get("upi_id") : "Not set");
 
         new AlertDialog.Builder(this)
                 .setTitle("Personal Details")
@@ -135,8 +158,9 @@ public class CustomerMainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // 2. Update Personal Details (Address & UPI)
     private void showUpdateDetailsDialog() {
+        if (isFinishing() || isDestroyed()) return;
+
         View v = LayoutInflater.from(this).inflate(R.layout.dialog_update_customer_details, null);
         EditText etUpi = v.findViewById(R.id.etUpdateUpi);
         EditText etVill = v.findViewById(R.id.etUpdateVillage);
@@ -190,15 +214,16 @@ public class CustomerMainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // 3. Reset Password
     private void showResetPasswordDialog() {
+        if (isFinishing() || isDestroyed()) return;
+
         EditText etNewPass = new EditText(this);
         etNewPass.setHint("Enter new password");
         etNewPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
 
         new AlertDialog.Builder(this)
                 .setTitle("Reset Password")
-                .setMessage("Enter your new secure password:")
+                .setMessage("Enter your new password:")
                 .setView(etNewPass)
                 .setPositiveButton("Update", (dialog, which) -> {
                     String newPass = etNewPass.getText().toString().trim();
@@ -233,15 +258,16 @@ public class CustomerMainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // 4. Help: Call Lender
     private void showHelpDialog() {
+        if (isFinishing() || isDestroyed()) return;
+
         String lenderNo = customerData.get("lender_phone") != null ? 
                 String.valueOf(customerData.get("lender_phone")) : "9932655607";
 
         new AlertDialog.Builder(this)
                 .setTitle("Lender Help & Support")
-                .setMessage("Need assistance with your loan? Contact your lender:\n\n📞 " + lenderNo)
-                .setPositiveButton("Call Lender", (dialog, which) -> {
+                .setMessage("Contact your lender for questions:\n\n📞 " + lenderNo)
+                .setPositiveButton("Call Now", (dialog, which) -> {
                     Intent callIntent = new Intent(Intent.ACTION_DIAL);
                     callIntent.setData(Uri.parse("tel:" + lenderNo));
                     startActivity(callIntent);
@@ -250,7 +276,6 @@ public class CustomerMainActivity extends AppCompatActivity {
                 .show();
     }
 
-    // 5. Logout
     private void performLogout() {
         getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).edit().clear().apply();
         Intent intent = new Intent(this, LoginActivity.class);
@@ -258,4 +283,4 @@ public class CustomerMainActivity extends AppCompatActivity {
         startActivity(intent);
         finish();
     }
-                       }
+                                                                                }
