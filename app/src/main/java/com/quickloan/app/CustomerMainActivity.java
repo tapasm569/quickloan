@@ -12,7 +12,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
-import com.google.android.material.navigation.NavigationView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
@@ -28,7 +27,7 @@ public class CustomerMainActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
     private TextView tvToolbarName;
-    private TextView tvHeaderName, tvHeaderPhone;
+    private TextView tvDrawerName, tvDrawerPhone;
     private String customerPhone = "";
     private Map<String, Object> customerData = new HashMap<>();
 
@@ -40,67 +39,53 @@ public class CustomerMainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_customer_main);
 
-        try {
-            customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
-            if (customerPhone == null || customerPhone.isEmpty()) {
-                customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
-            }
-
-            drawerLayout = findViewById(R.id.drawer_layout_customer);
-            tvToolbarName = findViewById(R.id.tvToolbarCustomerName);
-
-            // Right Hamburger Button
-            View btnHamburger = findViewById(R.id.btnRightHamburger);
-            if (btnHamburger != null && drawerLayout != null) {
-                btnHamburger.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.END));
-            }
-
-            // Right Navigation Drawer
-            NavigationView navView = findViewById(R.id.nav_view_customer_right);
-            if (navView != null) {
-                View headerView = navView.getHeaderCount() > 0 ? navView.getHeaderView(0) : navView.inflateHeaderView(R.layout.nav_header_customer);
-                if (headerView != null) {
-                    tvHeaderName = headerView.findViewById(R.id.tvHeaderCustomerName);
-                    tvHeaderPhone = headerView.findViewById(R.id.tvHeaderCustomerPhone);
-
-                    View profileHeader = headerView.findViewById(R.id.headerCustomerProfile);
-                    if (profileHeader != null) {
-                        profileHeader.setOnClickListener(v -> {
-                            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
-                            showPersonalDetailsDialog();
-                        });
-                    }
-                }
-
-                navView.setNavigationItemSelectedListener(item -> {
-                    int id = item.getItemId();
-                    if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
-
-                    if (id == R.id.nav_update_details) {
-                        showUpdateDetailsDialog();
-                    } else if (id == R.id.nav_reset_password) {
-                        showResetPasswordDialog();
-                    } else if (id == R.id.nav_help) {
-                        showHelpDialog();
-                    } else if (id == R.id.nav_logout) {
-                        performLogout();
-                    }
-                    return true;
-                });
-            }
-
-            // Card Listeners
-            bindCard(R.id.cardApplyLoan, "Apply Loan feature");
-            bindCard(R.id.cardApprovedDetails, "Approved Loan Details");
-            bindCard(R.id.cardDailyEmi, "Pay Daily EMI");
-            bindCard(R.id.cardCustHistory, "Payment History");
-            bindCard(R.id.cardCustLedger, "Ledger Balance");
-
-            fetchCustomerProfile();
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Startup error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+        if (customerPhone == null || customerPhone.isEmpty()) {
+            customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
         }
+
+        drawerLayout = findViewById(R.id.drawer_layout_customer);
+        tvToolbarName = findViewById(R.id.tvToolbarCustomerName);
+        tvDrawerName = findViewById(R.id.tvDrawerCustomerName);
+        tvDrawerPhone = findViewById(R.id.tvDrawerCustomerPhone);
+
+        // Open right drawer
+        findViewById(R.id.btnRightHamburger).setOnClickListener(v -> {
+            if (drawerLayout != null) drawerLayout.openDrawer(GravityCompat.END);
+        });
+
+        // Click drawer profile header
+        findViewById(R.id.btnDrawerProfileHeader).setOnClickListener(v -> {
+            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+            showPersonalDetailsDialog();
+        });
+
+        // Drawer Menu Click Listeners
+        findViewById(R.id.menuUpdateDetails).setOnClickListener(v -> {
+            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+            showUpdateDetailsDialog();
+        });
+
+        findViewById(R.id.menuResetPassword).setOnClickListener(v -> {
+            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+            showResetPasswordDialog();
+        });
+
+        findViewById(R.id.menuHelp).setOnClickListener(v -> {
+            if (drawerLayout != null) drawerLayout.closeDrawer(GravityCompat.END);
+            showHelpDialog();
+        });
+
+        findViewById(R.id.menuLogout).setOnClickListener(v -> performLogout());
+
+        // Card Listeners
+        bindCard(R.id.cardApplyLoan, "Apply Loan feature");
+        bindCard(R.id.cardApprovedDetails, "Approved Loan Details");
+        bindCard(R.id.cardDailyEmi, "Pay Daily EMI");
+        bindCard(R.id.cardCustHistory, "Payment History");
+        bindCard(R.id.cardCustLedger, "Ledger Balance");
+
+        fetchCustomerProfile();
     }
 
     private void bindCard(int id, String name) {
@@ -137,8 +122,8 @@ public class CustomerMainActivity extends AppCompatActivity {
                         if (isFinishing() || isDestroyed()) return;
                         String name = customerData.get("name") != null ? String.valueOf(customerData.get("name")) : "Customer";
                         if (tvToolbarName != null) tvToolbarName.setText(name);
-                        if (tvHeaderName != null) tvHeaderName.setText(name);
-                        if (tvHeaderPhone != null) tvHeaderPhone.setText("+91 " + customerPhone);
+                        if (tvDrawerName != null) tvDrawerName.setText(name);
+                        if (tvDrawerPhone != null) tvDrawerPhone.setText("+91 " + customerPhone);
                     });
                 }
             }
@@ -290,4 +275,4 @@ public class CustomerMainActivity extends AppCompatActivity {
         startActivity(intent);
         finish();
     }
-            }
+                                   }
