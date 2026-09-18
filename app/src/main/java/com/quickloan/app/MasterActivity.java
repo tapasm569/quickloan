@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -63,7 +64,6 @@ public class MasterActivity extends AppCompatActivity {
     }
 
     private void loadDueBalancesAndClients() {
-        // 1. Fetch active loans to calculate total unpaid balance per customer phone
         Request loanReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?is_paid=eq.0")
                 .addHeader("apikey", API_KEY)
@@ -158,7 +158,7 @@ public class MasterActivity extends AppCompatActivity {
                 holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", due));
                 holder.tvAvatar.setText(name.isEmpty() ? "C" : String.valueOf(name.charAt(0)).toUpperCase());
 
-                // Click on card -> View Full Profile
+                // Click card -> View full profile
                 holder.card.setOnClickListener(v -> showProfileDialog(client, due));
 
                 // Call
@@ -172,6 +172,9 @@ public class MasterActivity extends AppCompatActivity {
                     if (clean.length() == 10) clean = "91" + clean;
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean)));
                 });
+
+                // Delete Button on Card
+                holder.btnDelete.setOnClickListener(v -> confirmDeleteCustomer(phone, name));
             }
 
             @Override public int getItemCount() { return filtered.size(); }
@@ -179,8 +182,11 @@ public class MasterActivity extends AppCompatActivity {
     }
 
     private void showProfileDialog(Map<String, Object> c, double due) {
-        String profileDetails = "👤 Name: " + (c.get("name") != null ? c.get("name") : "-") + "\n"
-                + "📞 Mobile: " + (c.get("phone") != null ? c.get("phone") : "-") + "\n"
+        String name = c.get("name") != null ? c.get("name").toString() : "Customer";
+        String phone = c.get("phone") != null ? c.get("phone").toString() : "";
+
+        String profileDetails = "👤 Name: " + name + "\n"
+                + "📞 Mobile: " + phone + "\n"
                 + "📅 DOB: " + (c.get("dob") != null ? c.get("dob") : "-") + "\n"
                 + "🏡 Village: " + (c.get("village") != null ? c.get("village") : "-") + "\n"
                 + "📮 Post Office: " + (c.get("post_office") != null ? c.get("post_office") : "-") + "\n"
@@ -195,13 +201,92 @@ public class MasterActivity extends AppCompatActivity {
                 .setTitle("Borrower Profile Details")
                 .setMessage(profileDetails)
                 .setPositiveButton("Close", null)
+                .setNeutralButton("Delete Client", (dialog, which) -> confirmDeleteCustomer(phone, name))
                 .show();
+    }
+
+    private void confirmDeleteCustomer(String phone, String name) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Customer Profile?")
+                .setMessage("Are you sure you want to permanently delete " + name + " (+91 " + phone + ")?\n\nAll loan applications and transaction history for this customer will also be removed.")
+                .setPositiveButton("Delete", (dialog, which) -> executeCustomerDeletion(phone))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void executeCustomerDeletion(String phone) {
+        Toast.makeText(this, "Deleting customer...", Toast.LENGTH_SHORT).show();
+
+        // 1. Delete associated transactions
+        Request delTxReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + phone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .delete()
+                .build();
+
+        client.newCall(delTxReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                proceedToDeleteLoans(phone);
+            }
+
+            @Override public void onResponse(Call call, Response response) {
+                proceedToDeleteLoans(phone);
+            }
+        });
+    }
+
+    private void proceedToDeleteLoans(String phone) {
+        // 2. Delete associated loans
+        Request delLoansReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?phone=eq." + phone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .delete()
+                .build();
+
+        client.newCall(delLoansReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                proceedToDeleteCustomerRecord(phone);
+            }
+
+            @Override public void onResponse(Call call, Response response) {
+                proceedToDeleteCustomerRecord(phone);
+            }
+        });
+    }
+
+    private void proceedToDeleteCustomerRecord(String phone) {
+        // 3. Delete customer account record
+        Request delCustomerReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + phone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .delete()
+                .build();
+
+        client.newCall(delCustomerReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(MasterActivity.this, "Failed to delete from database", Toast.LENGTH_SHORT).show());
+            }
+
+            @Override public void onResponse(Call call, Response response) {
+                runOnUiThread(() -> {
+                    if (response.isSuccessful()) {
+                        Toast.makeText(MasterActivity.this, "Customer profile deleted successfully", Toast.LENGTH_SHORT).show();
+                        loadDueBalancesAndClients();
+                    } else {
+                        Toast.makeText(MasterActivity.this, "Error deleting (" + response.code() + ")", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 
     static class ClientVH extends RecyclerView.ViewHolder {
         View card;
         TextView tvAvatar, tvName, tvPhone, tvDue;
-        Button btnCall, btnWa;
+        Button btnCall, btnWa, btnDelete;
 
         ClientVH(@NonNull View v) {
             super(v);
@@ -212,6 +297,7 @@ public class MasterActivity extends AppCompatActivity {
             tvDue = v.findViewById(R.id.tvClientDueBalance);
             btnCall = v.findViewById(R.id.btnMasterCall);
             btnWa = v.findViewById(R.id.btnMasterWhatsApp);
+            btnDelete = v.findViewById(R.id.btnMasterDelete);
         }
     }
 }
