@@ -23,7 +23,11 @@
         </activity>
 
         <!-- 2. Authentication & Onboarding -->
-        <activity android:name=".LoginActivity" />
+        <activity 
+    android:name=".LoginActivity" 
+  android:theme="@style/Theme.QuickLoan" />
+
+
         <activity android:name=".RegisterActivity" />
         <activity android:name=".CustomerProfileActivity" />
 
