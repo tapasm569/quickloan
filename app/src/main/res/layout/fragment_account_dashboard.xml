@@ -65,26 +65,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 3. Add Old Running Loan -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardAddOldLoan"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            app:cardBackgroundColor="#0D9488"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="2dp">
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:padding="14dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="📥" android:textSize="22sp" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:text="Add Old / Running Loan" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-        <!-- 4. Approve Loan -->
+        <!-- 3. Approve Loan -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardApproveLoan"
             android:layout_width="match_parent"
@@ -103,7 +84,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 5. Today's Due -->
+        <!-- 4. Today's Due -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardTodaysDue"
             android:layout_width="match_parent"
@@ -122,7 +103,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 6. Today's Payment -->
+        <!-- 5. Today's Payment -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardTodaysPayment"
             android:layout_width="match_parent"
@@ -141,7 +122,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 7. Master Client Directory -->
+        <!-- 6. Master Client Directory -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardMaster"
             android:layout_width="match_parent"
@@ -160,7 +141,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 8. Slate Ledger Book -->
+        <!-- 7. Slate Ledger Book -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardLedgerBook"
             android:layout_width="match_parent"
