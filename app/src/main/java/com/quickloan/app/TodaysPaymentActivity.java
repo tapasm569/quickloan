@@ -14,9 +14,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,11 +27,14 @@ public class TodaysPaymentActivity extends AppCompatActivity {
 
     private TextView tvTotalCollected, tvEmpty;
     private RecyclerView rv;
+    private String todayIndianDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_todays_payment);
+
+        todayIndianDate = DateHelper.getTodayDate();
 
         tvTotalCollected = findViewById(R.id.tvTotalCollectedAmount);
         tvEmpty = findViewById(R.id.tvEmptyPayments);
@@ -44,10 +45,8 @@ public class TodaysPaymentActivity extends AppCompatActivity {
     }
 
     private void loadTodaysPayments() {
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-
         Request request = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + today + "&payment_type=eq.DAILY_EMI&order=id.desc")
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?payment_type=eq.DAILY_EMI&order=id.desc")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -65,18 +64,22 @@ public class TodaysPaymentActivity extends AppCompatActivity {
                 List<Map<String, Object>> txs = gson.fromJson(body, type);
                 if (txs == null) txs = new ArrayList<>();
 
+                List<Map<String, Object>> todayTxs = new ArrayList<>();
                 double total = 0;
+
                 for (Map<String, Object> item : txs) {
-                    double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
-                    total += amt;
+                    String date = DateHelper.formatToIndianDate(String.valueOf(item.get("transaction_date")));
+                    if (todayIndianDate.equals(date)) {
+                        todayTxs.add(item);
+                        double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
+                        total += amt;
+                    }
                 }
 
                 double finalTotal = total;
-                List<Map<String, Object>> finalList = txs;
-
                 runOnUiThread(() -> {
                     tvTotalCollected.setText(String.format(Locale.getDefault(), "₹%.0f", finalTotal));
-                    if (finalList.isEmpty()) {
+                    if (todayTxs.isEmpty()) {
                         tvEmpty.setVisibility(View.VISIBLE);
                     } else {
                         tvEmpty.setVisibility(View.GONE);
@@ -90,16 +93,16 @@ public class TodaysPaymentActivity extends AppCompatActivity {
                         }
 
                         @Override public void onBindViewHolder(@NonNull RecordVH holder, int position) {
-                            Map<String, Object> item = finalList.get(position);
+                            Map<String, Object> item = todayTxs.get(position);
                             double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
                             String mode = String.valueOf(item.get("payment_mode"));
                             String phone = String.valueOf(item.get("customer_phone"));
 
                             holder.t1.setText("💰 Collected: ₹" + (int)amt);
-                            holder.t2.setText("Borrower: " + phone + " | Mode: " + mode);
+                            holder.t2.setText("Date: " + todayIndianDate + " | Phone: " + phone + " | Mode: " + mode);
                         }
 
-                        @Override public int getItemCount() { return finalList.size(); }
+                        @Override public int getItemCount() { return todayTxs.size(); }
                     });
                 });
             }
