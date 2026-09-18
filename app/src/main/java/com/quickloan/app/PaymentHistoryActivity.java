@@ -15,9 +15,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -31,14 +29,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
     private TextView tvDateBadge, tvTotalDue, tvTotalPaid, tvTotalRemaining, tvEmpty;
     private RecyclerView rvTable;
-    private String currentDate;
+    private String todayIndianDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_payment_history);
 
-        currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        // Formats header badge as DD-MM-YYYY
+        todayIndianDate = DateHelper.getTodayDate();
 
         tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
         tvTotalDue = findViewById(R.id.tvSlateTotalDue);
@@ -46,7 +45,9 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         tvTotalRemaining = findViewById(R.id.tvSlateTotalRemaining);
         tvEmpty = findViewById(R.id.tvEmptySlate);
 
-        tvDateBadge.setText(currentDate);
+        if (tvDateBadge != null) {
+            tvDateBadge.setText(todayIndianDate);
+        }
 
         rvTable = findViewById(R.id.rvSlateTable);
         rvTable.setLayoutManager(new LinearLayoutManager(this));
@@ -86,8 +87,9 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     }
 
     private void loadSlateLedgerData(Map<String, String> phoneToName) {
+        // Query matching both Indian DD-MM-YYYY and legacy YYYY-MM-DD
         Request txReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + currentDate)
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -106,7 +108,8 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
                     if (txs != null) {
                         for (Map<String, Object> t : txs) {
-                            if (t.get("loan_id") != null && t.get("amount") != null) {
+                            String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
+                            if (todayIndianDate.equals(txDate) && t.get("loan_id") != null && t.get("amount") != null) {
                                 int loanId = ((Double) t.get("loan_id")).intValue();
                                 double amt = ((Double) t.get("amount"));
                                 todayPaidMap.put(loanId, todayPaidMap.getOrDefault(loanId, 0.0) + amt);
@@ -155,7 +158,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     int loanId = ((Double) l.get("id")).intValue();
                     String phone = String.valueOf(l.get("phone"));
 
-                    // Retrieve registered customer name
                     String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
                     if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
                         name = phone;
@@ -169,7 +171,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     double todayDue = Math.max(0.0, dailyEmi - todayPayment);
                     double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
 
-                    slateEntries.add(new SlateEntry(sl++, currentDate, name, todayDue, todayPayment, remainingBalance));
+                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, todayDue, todayPayment, remainingBalance));
 
                     sumDue += todayDue;
                     sumPaid += todayPayment;
