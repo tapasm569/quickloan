@@ -58,14 +58,15 @@ public class AccountDashboardFragment extends Fragment {
             }
 
             // Normalize to 10 digits
-            String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
-            if (cleanPhone.length() > 10 && cleanPhone.startsWith("91")) {
-                cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
+            String tempPhone = rawPhone.replaceAll("[^0-9]", "");
+            if (tempPhone.length() > 10 && tempPhone.startsWith("91")) {
+                tempPhone = tempPhone.substring(tempPhone.length() - 10);
             }
+            final String finalPhone = tempPhone;
 
             Map<String, Object> map = new HashMap<>();
             map.put("name", "New Borrower");
-            map.put("phone", cleanPhone);
+            map.put("phone", finalPhone);
             map.put("password", pass);
             map.put("lender_phone", "9932655607");
             map.put("is_profile_completed", 0);
@@ -82,19 +83,25 @@ public class AccountDashboardFragment extends Fragment {
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Network error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                    if (getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> 
+                            Toast.makeText(getContext(), "Network error: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                        );
+                    }
                 }
 
                 @Override
                 public void onResponse(Call call, Response response) throws IOException {
                     String respBody = response.body() != null ? response.body().string() : "";
-                    requireActivity().runOnUiThread(() -> {
-                        if (response.isSuccessful()) {
-                            Toast.makeText(getContext(), "ID created successfully for " + cleanPhone, Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(getContext(), "Failed (" + response.code() + "): " + respBody, Toast.LENGTH_LONG).show();
-                        }
-                    });
+                    if (getActivity() != null) {
+                        requireActivity().runOnUiThread(() -> {
+                            if (response.isSuccessful()) {
+                                Toast.makeText(getContext(), "ID created successfully for " + finalPhone, Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getContext(), "Failed (" + response.code() + "): " + respBody, Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
                 }
             });
         });
@@ -128,4 +135,4 @@ public class AccountDashboardFragment extends Fragment {
 
         dialog.show();
     }
-            }
+                    }
