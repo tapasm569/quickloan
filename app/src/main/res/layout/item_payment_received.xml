@@ -46,7 +46,7 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
-            <!-- Paid Amount Badge -->
+            <!-- Paid Amount -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -78,7 +78,7 @@
             android:layout_marginVertical="10dp"
             android:background="#334155" />
 
-        <!-- Remaining Balance & Payment Mode Pill -->
+        <!-- Remaining Balance & Payment Mode Badge -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -110,7 +110,6 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Mode Badge (UPI / Cash) -->
             <TextView
                 android:id="@+id/tvRecPaymentMode"
                 android:layout_width="wrap_content"
@@ -118,10 +117,10 @@
                 android:background="@drawable/edittext_bg"
                 android:backgroundTint="#2563EB"
                 android:paddingHorizontal="12dp"
-                android:paddingVertical="5dp"
-                android:text="UPI"
+                android:paddingVertical="4dp"
+                android:text="CASH"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"
+                android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
