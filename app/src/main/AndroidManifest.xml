@@ -32,6 +32,8 @@
         <activity android:name=".MasterActivity" />
         <activity android:name=".ApproveLoanActivity" />
         <activity android:name=".TransferMoneyActivity" />
+        <activity android:name=".TodaysDueActivity" />
+        <activity android:name=".TodaysPaymentActivity" />
 
         <!-- 4. Customer Panel Screens -->
         <activity android:name=".CustomerMainActivity" />
