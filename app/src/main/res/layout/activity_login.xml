@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8FAFC"
+    android:background="@color/surface_bg"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="24dp">
@@ -20,7 +20,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Quick Loan"
-        android:textColor="#0F172A"
+        android:textColor="@color/text_main"
         android:textSize="26sp"
         android:textStyle="bold" />
 
@@ -29,15 +29,15 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:text="Sign in to your account"
-        android:textColor="#64748B"
+        android:textColor="@color/text_muted"
         android:textSize="14sp" />
 
-    <!-- Original White Login Card -->
+    <!-- Dark Slate Login Card -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        app:cardBackgroundColor="#FFFFFF"
+        app:cardBackgroundColor="@color/card_bg"
         app:cardCornerRadius="16dp"
         app:cardElevation="4dp">
 
@@ -51,7 +51,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="MOBILE NUMBER"
-                android:textColor="#475569"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -64,8 +64,8 @@
                 android:hint="Enter 10-digit mobile number"
                 android:inputType="phone"
                 android:paddingHorizontal="14dp"
-                android:textColor="#0F172A"
-                android:textColorHint="#94A3B8"
+                android:textColor="@color/text_main"
+                android:textColorHint="@color/text_subtle"
                 android:textSize="14sp" />
 
             <TextView
@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="PASSWORD"
-                android:textColor="#475569"
+                android:textColor="@color/text_muted"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -86,8 +86,8 @@
                 android:hint="Enter password"
                 android:inputType="textPassword"
                 android:paddingHorizontal="14dp"
-                android:textColor="#0F172A"
-                android:textColorHint="#94A3B8"
+                android:textColor="@color/text_main"
+                android:textColorHint="@color/text_subtle"
                 android:textSize="14sp" />
 
             <Button
