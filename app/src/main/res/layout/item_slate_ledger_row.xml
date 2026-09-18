@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rowSlateLayout"
+    android:layout_width="wrap_content"
+    android:layout_height="48dp"
+    android:background="#0F172A"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <!-- SL No -->
+    <TextView
+        android:id="@+id/tvRowSlNo"
+        android:layout_width="48dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="1"
+        android:textColor="#64748B"
+        android:textSize="12sp" />
+
+    <!-- Date -->
+    <TextView
+        android:id="@+id/tvRowDate"
+        android:layout_width="92dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="2026-09-18"
+        android:textColor="#94A3B8"
+        android:textSize="11sp" />
+
+    <!-- Name -->
+    <TextView
+        android:id="@+id/tvRowName"
+        android:layout_width="125dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingStart="8dp"
+        android:text="Customer Name"
+        android:textColor="#F8FAFC"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- TODAYS DEU (Minus payment done today) -->
+    <TextView
+        android:id="@+id/tvRowTodaysDue"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="₹0"
+        android:textColor="#F43F5E"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- TODAY'S PAYMENT -->
+    <TextView
+        android:id="@+id/tvRowTodaysPayment"
+        android:layout_width="115dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="₹0"
+        android:textColor="#10B981"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- REMAINING BALANCE -->
+    <TextView
+        android:id="@+id/tvRowRemainingBalance"
+        android:layout_width="125dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="₹0"
+        android:textColor="#F59E0B"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
