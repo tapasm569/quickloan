@@ -1,5 +1,6 @@
 package com.quickloan.app;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,8 +15,12 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class PaymentHistoryActivity extends AppCompatActivity {
@@ -23,38 +28,83 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private static final String API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6aWRvaHV3Y2ViZm9vdnlkeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MDUzNjEsImV4cCI6MjEwNTE4MTM2MX0.2yFWPMXFK_UxTZMuv0J9XIPAPomyxP96MwCo9S2VQYY";
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
-    private RecyclerView rv;
-    private TextView tvEmpty;
+
+    private TextView tvDateBadge, tvTotalDue, tvTotalPaid, tvTotalRemaining, tvEmpty;
+    private RecyclerView rvTable;
+    private String currentDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_simple_list);
+        setContentView(R.layout.activity_payment_history);
 
-        TextView tvTitle = findViewById(R.id.tvListHeaderTitle);
-        tvTitle.setText("Transaction Ledger & History");
-        tvEmpty = findViewById(R.id.tvEmptyMessage);
-        rv = findViewById(R.id.rvSimpleList);
-        rv.setLayoutManager(new LinearLayoutManager(this));
+        currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        String customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+        tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
+        tvTotalDue = findViewById(R.id.tvSlateTotalDue);
+        tvTotalPaid = findViewById(R.id.tvSlateTotalPaid);
+        tvTotalRemaining = findViewById(R.id.tvSlateTotalRemaining);
+        tvEmpty = findViewById(R.id.tvEmptySlate);
 
-        String url = (customerPhone != null && !customerPhone.isEmpty()) ?
-                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + customerPhone + "&order=id.desc" :
-                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc";
+        tvDateBadge.setText(currentDate);
 
-        loadHistory(url);
+        rvTable = findViewById(R.id.rvSlateTable);
+        rvTable.setLayoutManager(new LinearLayoutManager(this));
+
+        loadSlateLedgerData();
     }
 
-    private void loadHistory(String url) {
-        Request request = new Request.Builder()
+    private void loadSlateLedgerData() {
+        // Step 1: Query transactions made today to aggregate payments per loan/borrower
+        Request txReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + currentDate)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(txReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                Map<Integer, Double> todayPaidMap = new HashMap<>();
+
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
+                    if (txs != null) {
+                        for (Map<String, Object> t : txs) {
+                            if (t.get("loan_id") != null && t.get("amount") != null) {
+                                int loanId = ((Double) t.get("loan_id")).intValue();
+                                double amt = ((Double) t.get("amount"));
+                                todayPaidMap.put(loanId, todayPaidMap.getOrDefault(loanId, 0.0) + amt);
+                            }
+                        }
+                    }
+                }
+
+                // Step 2: Fetch all active disbursed loans to populate slate entries
+                fetchLoansAndBuildSlate(todayPaidMap);
+            }
+        });
+    }
+
+    private void fetchLoansAndBuildSlate(Map<Integer, Double> todayPaidMap) {
+        String filterPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+        String url = (filterPhone != null && !filterPhone.isEmpty()) ?
+                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + filterPhone + "&disbursement_status=eq.DISBURSED&order=id.desc" :
+                "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.DISBURSED&order=id.desc";
+
+        Request loanReq = new Request.Builder()
                 .url(url)
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        client.newCall(loanReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
             }
@@ -63,47 +113,131 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 if (!response.isSuccessful()) return;
                 String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> txs = gson.fromJson(body, type);
-                if (txs == null) txs = new ArrayList<>();
+                List<Map<String, Object>> loans = gson.fromJson(body, type);
+                if (loans == null) loans = new ArrayList<>();
 
-                List<Map<String, Object>> finalList = txs;
-                runOnUiThread(() -> {
-                    if (finalList.isEmpty()) {
-                        tvEmpty.setVisibility(View.VISIBLE);
-                        return;
+                List<SlateEntry> slateEntries = new ArrayList<>();
+                double sumDue = 0;
+                double sumPaid = 0;
+                double sumRemaining = 0;
+
+                int sl = 1;
+                for (Map<String, Object> l : loans) {
+                    int loanId = ((Double) l.get("id")).intValue();
+                    String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
+                    if (name.startsWith("Borrower (") && l.get("phone") != null) {
+                        name = String.valueOf(l.get("phone"));
                     }
-                    tvEmpty.setVisibility(View.GONE);
-                    rv.setAdapter(new RecyclerView.Adapter<RecordVH>() {
-                        @NonNull
-                        @Override public RecordVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_simple_record, parent, false);
-                            return new RecordVH(v);
-                        }
 
-                        @Override public void onBindViewHolder(@NonNull RecordVH holder, int position) {
-                            Map<String, Object> item = finalList.get(position);
-                            String type = String.valueOf(item.get("payment_type"));
-                            double amt = item.get("amount") != null ? ((Double) item.get("amount")) : 0;
-                            String date = String.valueOf(item.get("transaction_date"));
-                            String mode = String.valueOf(item.get("payment_mode"));
+                    double dailyEmi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
+                    double totalAmount = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
+                    double totalPaidOverall = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
 
-                            holder.t1.setText(("DISBURSEMENT".equals(type) ? "💸 Received Loan: ₹" : "💳 Paid EMI: ₹") + (int)amt);
-                            holder.t2.setText("Date: " + date + " | Mode: " + mode + " | Phone: " + item.get("customer_phone"));
-                        }
+                    // Payment made today by this customer
+                    double todayPayment = todayPaidMap.getOrDefault(loanId, 0.0);
 
-                        @Override public int getItemCount() { return finalList.size(); }
-                    });
+                    // If customer paid any amount, that amount is directly subtracted from today's due
+                    double todayDue = Math.max(0.0, dailyEmi - todayPayment);
+
+                    // Overall remaining unpaid balance
+                    double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
+
+                    slateEntries.add(new SlateEntry(sl++, currentDate, name, todayDue, todayPayment, remainingBalance));
+
+                    sumDue += todayDue;
+                    sumPaid += todayPayment;
+                    sumRemaining += remainingBalance;
+                }
+
+                double finalSumDue = sumDue;
+                double finalSumPaid = sumPaid;
+                double finalSumRemaining = sumRemaining;
+
+                runOnUiThread(() -> {
+                    tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumDue));
+                    tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumPaid));
+                    tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumRemaining));
+
+                    if (slateEntries.isEmpty()) {
+                        tvEmpty.setVisibility(View.VISIBLE);
+                    } else {
+                        tvEmpty.setVisibility(View.GONE);
+                    }
+
+                    rvTable.setAdapter(new SlateAdapter(slateEntries));
                 });
             }
         });
     }
 
-    static class RecordVH extends RecyclerView.ViewHolder {
-        TextView t1, t2;
-        RecordVH(@NonNull View itemView) {
-            super(itemView);
-            t1 = itemView.findViewById(R.id.tvRecordTitle);
-            t2 = itemView.findViewById(R.id.tvRecordSubtitle);
+    static class SlateEntry {
+        int slNo;
+        String date;
+        String name;
+        double todaysDue;
+        double todaysPayment;
+        double remainingBalance;
+
+        SlateEntry(int slNo, String date, String name, double todaysDue, double todaysPayment, double remainingBalance) {
+            this.slNo = slNo;
+            this.date = date;
+            this.name = name;
+            this.todaysDue = todaysDue;
+            this.todaysPayment = todaysPayment;
+            this.remainingBalance = remainingBalance;
+        }
+    }
+
+    static class SlateAdapter extends RecyclerView.Adapter<SlateAdapter.SlateVH> {
+        private final List<SlateEntry> list;
+
+        SlateAdapter(List<SlateEntry> list) {
+            this.list = list;
+        }
+
+        @NonNull
+        @Override
+        public SlateVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_slate_ledger_row, parent, false);
+            return new SlateVH(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull SlateVH holder, int position) {
+            SlateEntry item = list.get(position);
+
+            holder.tvSl.setText(String.valueOf(item.slNo));
+            holder.tvDate.setText(item.date);
+            holder.tvName.setText(item.name);
+            holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysDue));
+            holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysPayment));
+            holder.tvRem.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
+
+            // Alternate row slate color for clean tabular contrast
+            if (position % 2 == 1) {
+                holder.itemView.setBackgroundColor(Color.parseColor("#141E33"));
+            } else {
+                holder.itemView.setBackgroundColor(Color.parseColor("#0F172A"));
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return list.size();
+        }
+
+        static class SlateVH extends RecyclerView.ViewHolder {
+            TextView tvSl, tvDate, tvName, tvDue, tvPaid, tvRem;
+
+            SlateVH(@NonNull View v) {
+                super(v);
+                tvSl = v.findViewById(R.id.tvRowSlNo);
+                tvDate = v.findViewById(R.id.tvRowDate);
+                tvName = v.findViewById(R.id.tvRowName);
+                tvDue = v.findViewById(R.id.tvRowTodaysDue);
+                tvPaid = v.findViewById(R.id.tvRowTodaysPayment);
+                tvRem = v.findViewById(R.id.tvRowRemainingBalance);
+            }
         }
     }
 }
