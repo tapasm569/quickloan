@@ -1,13 +1,15 @@
 package com.quickloan.app;
 
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.material.chip.ChipGroup;
 import com.google.gson.Gson;
 import okhttp3.*;
 import java.io.IOException;
@@ -26,7 +28,8 @@ public class ApplyLoanActivity extends AppCompatActivity {
 
     private EditText etAmount, etDays, etNote;
     private TextView tvRate, tvTotal, tvDailyEmi;
-    private ChipGroup chipGroupAmount, chipGroupTenure;
+    private Button btn5k, btn10k, btn15k, btn20k, btn30k, btn50k;
+    private Button btn30, btn60, btn90, btn180;
     private String customerPhone = "";
 
     private double selectedPrincipal = 10000;
@@ -35,52 +38,104 @@ public class ApplyLoanActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_apply_loan);
+        try {
+            setContentView(R.layout.activity_apply_loan);
 
-        customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
-        if (customerPhone == null || customerPhone.isEmpty()) {
-            customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
+            customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+            if (customerPhone == null || customerPhone.isEmpty()) {
+                customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
+            }
+
+            // Input & Display Views
+            etAmount = findViewById(R.id.etCustomAmount);
+            etDays = findViewById(R.id.etCustomDays);
+            etNote = findViewById(R.id.etApplyNote);
+            tvRate = findViewById(R.id.tvCalcRate);
+            tvTotal = findViewById(R.id.tvCalcTotal);
+            tvDailyEmi = findViewById(R.id.tvCalcDailyEmi);
+
+            // Amount Buttons
+            btn5k = findViewById(R.id.btnAmt5k);
+            btn10k = findViewById(R.id.btnAmt10k);
+            btn15k = findViewById(R.id.btnAmt15k);
+            btn20k = findViewById(R.id.btnAmt20k);
+            btn30k = findViewById(R.id.btnAmt30k);
+            btn50k = findViewById(R.id.btnAmt50k);
+
+            // Tenure Buttons
+            btn30 = findViewById(R.id.btnTenure30);
+            btn60 = findViewById(R.id.btnTenure60);
+            btn90 = findViewById(R.id.btnTenure90);
+            btn180 = findViewById(R.id.btnTenure180);
+
+            setupAmountButtons();
+            setupTenureButtons();
+            setupCustomInputs();
+
+            findViewById(R.id.btnSubmitLoan).setOnClickListener(v -> submitLoanApplication());
+
+            recalculate();
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Error initializing: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
         }
+    }
 
-        etAmount = findViewById(R.id.etCustomAmount);
-        etDays = findViewById(R.id.etCustomDays);
-        etNote = findViewById(R.id.etApplyNote);
-        tvRate = findViewById(R.id.tvCalcRate);
-        tvTotal = findViewById(R.id.tvCalcTotal);
-        tvDailyEmi = findViewById(R.id.tvCalcDailyEmi);
-        chipGroupAmount = findViewById(R.id.chipGroupAmount);
-        chipGroupTenure = findViewById(R.id.chipGroupTenure);
+    private void setupAmountButtons() {
+        btn5k.setOnClickListener(v -> selectAmount(5000, btn5k));
+        btn10k.setOnClickListener(v -> selectAmount(10000, btn10k));
+        btn15k.setOnClickListener(v -> selectAmount(15000, btn15k));
+        btn20k.setOnClickListener(v -> selectAmount(20000, btn20k));
+        btn30k.setOnClickListener(v -> selectAmount(30000, btn30k));
+        btn50k.setOnClickListener(v -> selectAmount(50000, btn50k));
+    }
 
-        setupListeners();
+    private void selectAmount(double amount, Button selectedBtn) {
+        selectedPrincipal = amount;
+        etAmount.setText("");
+
+        // Reset and highlight active button
+        Button[] btns = {btn5k, btn10k, btn15k, btn20k, btn30k, btn50k};
+        for (Button b : btns) {
+            b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
+        }
+        selectedBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2563EB")));
+
         recalculate();
     }
 
-    private void setupListeners() {
-        chipGroupAmount.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.chip5k) selectedPrincipal = 5000;
-            else if (checkedId == R.id.chip10k) selectedPrincipal = 10000;
-            else if (checkedId == R.id.chip15k) selectedPrincipal = 15000;
-            else if (checkedId == R.id.chip20k) selectedPrincipal = 20000;
-            else if (checkedId == R.id.chip30k) selectedPrincipal = 30000;
-            else if (checkedId == R.id.chip50k) selectedPrincipal = 50000;
-            recalculate();
-        });
+    private void setupTenureButtons() {
+        btn30.setOnClickListener(v -> selectTenure(30, btn30));
+        btn60.setOnClickListener(v -> selectTenure(60, btn60));
+        btn90.setOnClickListener(v -> selectTenure(90, btn90));
+        btn180.setOnClickListener(v -> selectTenure(180, btn180));
+    }
 
-        chipGroupTenure.setOnCheckedChangeListener((group, checkedId) -> {
-            if (checkedId == R.id.chip30d) selectedDays = 30;
-            else if (checkedId == R.id.chip60d) selectedDays = 60;
-            else if (checkedId == R.id.chip90d) selectedDays = 90;
-            else if (checkedId == R.id.chip180d) selectedDays = 180;
-            recalculate();
-        });
+    private void selectTenure(int days, Button selectedBtn) {
+        selectedDays = days;
+        etDays.setText("");
 
+        Button[] btns = {btn30, btn60, btn90, btn180};
+        for (Button b : btns) {
+            b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
+        }
+        selectedBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2563EB")));
+
+        recalculate();
+    }
+
+    private void setupCustomInputs() {
         etAmount.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
             @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
                 if (!s.toString().trim().isEmpty()) {
-                    chipGroupAmount.clearCheck();
-                    try { selectedPrincipal = Double.parseDouble(s.toString().trim()); } catch (Exception ignored) {}
-                    recalculate();
+                    try {
+                        selectedPrincipal = Double.parseDouble(s.toString().trim());
+                        Button[] btns = {btn5k, btn10k, btn15k, btn20k, btn30k, btn50k};
+                        for (Button b : btns) b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
+                        recalculate();
+                    } catch (Exception ignored) {}
                 }
             }
             @Override public void afterTextChanged(Editable s) {}
@@ -90,25 +145,32 @@ public class ApplyLoanActivity extends AppCompatActivity {
             @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
             @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
                 if (!s.toString().trim().isEmpty()) {
-                    chipGroupTenure.clearCheck();
-                    try { selectedDays = Integer.parseInt(s.toString().trim()); } catch (Exception ignored) {}
-                    recalculate();
+                    try {
+                        selectedDays = Integer.parseInt(s.toString().trim());
+                        Button[] btns = {btn30, btn60, btn90, btn180};
+                        for (Button b : btns) b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
+                        recalculate();
+                    } catch (Exception ignored) {}
                 }
             }
             @Override public void afterTextChanged(Editable s) {}
         });
-
-        findViewById(R.id.btnSubmitLoan).setOnClickListener(v -> submitApplication());
     }
 
     private void recalculate() {
         if (selectedPrincipal <= 0 || selectedDays <= 0) return;
 
+        // Tiered Annual Interest Calculation
         double annualRate;
-        if (selectedPrincipal <= 10000) annualRate = 10.0;
-        else if (selectedPrincipal <= 20000) annualRate = 15.0;
-        else if (selectedPrincipal <= 30000) annualRate = 20.0;
-        else annualRate = 30.0;
+        if (selectedPrincipal <= 10000) {
+            annualRate = 10.0;
+        } else if (selectedPrincipal <= 20000) {
+            annualRate = 15.0;
+        } else if (selectedPrincipal <= 30000) {
+            annualRate = 20.0;
+        } else {
+            annualRate = 30.0;
+        }
 
         double interestAmt = (selectedPrincipal * annualRate * selectedDays) / (365.0 * 100.0);
         double totalPayable = selectedPrincipal + interestAmt;
@@ -119,14 +181,14 @@ public class ApplyLoanActivity extends AppCompatActivity {
         tvDailyEmi.setText(String.format(Locale.getDefault(), "₹%.0f / day", Math.ceil(dailyEmi)));
     }
 
-    private void submitApplication() {
+    private void submitLoanApplication() {
         if (customerPhone == null || customerPhone.isEmpty()) {
-            Toast.makeText(this, "Session expired, please login again", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Session expired, please login again", Toast.LENGTH_SHORT).show();
             return;
         }
 
         if (selectedPrincipal <= 0 || selectedDays <= 0) {
-            Toast.makeText(this, "Please select an amount and tenure", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please specify an amount and tenure", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -170,15 +232,17 @@ public class ApplyLoanActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
+            @Override
+            public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> Toast.makeText(ApplyLoanActivity.this, "Network Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
                 final String resBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        Toast.makeText(ApplyLoanActivity.this, "Loan application sent to lender!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(ApplyLoanActivity.this, "Loan application submitted for approval!", Toast.LENGTH_LONG).show();
                         finish();
                     } else {
                         Toast.makeText(ApplyLoanActivity.this, "Failed (" + response.code() + "): " + resBody, Toast.LENGTH_LONG).show();
