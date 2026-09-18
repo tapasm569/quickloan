@@ -12,7 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuickLoan">
 
-        <!-- 1. App Launch / Splash Screen -->
+        <!-- 1. App Launch & Session Router -->
         <activity
             android:name=".SplashActivity"
             android:exported="true">
@@ -24,14 +24,14 @@
 
         <!-- 2. Authentication & Onboarding -->
         <activity 
-    android:name=".LoginActivity" 
-  android:theme="@style/Theme.QuickLoan" />
-
-
+            android:name=".LoginActivity" 
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".RegisterActivity" />
-        <activity android:name=".CustomerProfileActivity" />
+        <activity 
+            android:name=".CustomerProfileActivity" 
+            android:windowSoftInputMode="adjustResize" />
 
-        <!-- 3. Lender Panel Screens -->
+        <!-- 3. Lender Panel Activities -->
         <activity android:name=".LenderMainActivity" />
         <activity android:name=".MasterActivity" />
         <activity android:name=".ApproveLoanActivity" />
@@ -39,9 +39,11 @@
         <activity android:name=".TodaysDueActivity" />
         <activity android:name=".TodaysPaymentActivity" />
 
-        <!-- 4. Customer Panel Screens -->
+        <!-- 4. Customer Panel Activities -->
         <activity android:name=".CustomerMainActivity" />
-        <activity android:name=".ApplyLoanActivity" />
+        <activity 
+            android:name=".ApplyLoanActivity" 
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".CustomerApprovedLoansActivity" />
         <activity android:name=".PayDailyEmiActivity" />
         <activity android:name=".CustomerLedgerActivity" />
