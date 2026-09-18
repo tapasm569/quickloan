@@ -51,11 +51,41 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         rvTable = findViewById(R.id.rvSlateTable);
         rvTable.setLayoutManager(new LinearLayoutManager(this));
 
-        loadSlateLedgerData();
+        loadCustomerNamesAndData();
     }
 
-    private void loadSlateLedgerData() {
-        // Step 1: Query transactions made today to aggregate payments per loan/borrower
+    private void loadCustomerNamesAndData() {
+        Request custReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(custReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                loadSlateLedgerData(new HashMap<>());
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                Map<String, String> phoneToName = new HashMap<>();
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
+                    if (customers != null) {
+                        for (Map<String, Object> c : customers) {
+                            String p = String.valueOf(c.get("phone"));
+                            String n = c.get("name") != null ? String.valueOf(c.get("name")) : "";
+                            if (!n.isEmpty()) phoneToName.put(p, n);
+                        }
+                    }
+                }
+                loadSlateLedgerData(phoneToName);
+            }
+        });
+    }
+
+    private void loadSlateLedgerData(Map<String, String> phoneToName) {
         Request txReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + currentDate)
                 .addHeader("apikey", API_KEY)
@@ -85,13 +115,12 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     }
                 }
 
-                // Step 2: Fetch all active disbursed loans to populate slate entries
-                fetchLoansAndBuildSlate(todayPaidMap);
+                fetchLoansAndBuildSlate(todayPaidMap, phoneToName);
             }
         });
     }
 
-    private void fetchLoansAndBuildSlate(Map<Integer, Double> todayPaidMap) {
+    private void fetchLoansAndBuildSlate(Map<Integer, Double> todayPaidMap, Map<String, String> phoneToName) {
         String filterPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
         String url = (filterPhone != null && !filterPhone.isEmpty()) ?
                 "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + filterPhone + "&disbursement_status=eq.DISBURSED&order=id.desc" :
@@ -124,22 +153,20 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 int sl = 1;
                 for (Map<String, Object> l : loans) {
                     int loanId = ((Double) l.get("id")).intValue();
-                    String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
-                    if (name.startsWith("Borrower (") && l.get("phone") != null) {
-                        name = String.valueOf(l.get("phone"));
+                    String phone = String.valueOf(l.get("phone"));
+
+                    // Retrieve registered customer name
+                    String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
+                    if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
+                        name = phone;
                     }
 
                     double dailyEmi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
                     double totalAmount = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
                     double totalPaidOverall = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
 
-                    // Payment made today by this customer
                     double todayPayment = todayPaidMap.getOrDefault(loanId, 0.0);
-
-                    // If customer paid any amount, that amount is directly subtracted from today's due
                     double todayDue = Math.max(0.0, dailyEmi - todayPayment);
-
-                    // Overall remaining unpaid balance
                     double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
 
                     slateEntries.add(new SlateEntry(sl++, currentDate, name, todayDue, todayPayment, remainingBalance));
@@ -213,7 +240,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
             holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysPayment));
             holder.tvRem.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
 
-            // Alternate row slate color for clean tabular contrast
             if (position % 2 == 1) {
                 holder.itemView.setBackgroundColor(Color.parseColor("#141E33"));
             } else {
