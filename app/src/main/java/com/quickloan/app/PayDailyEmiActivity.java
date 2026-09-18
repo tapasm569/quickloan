@@ -1,7 +1,9 @@
 package com.quickloan.app;
 
 import android.os.Bundle;
+import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,16 +29,20 @@ public class PayDailyEmiActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_simple_list);
+
+        TextView tvTitle = findViewById(R.id.tvListHeaderTitle);
+        tvTitle.setText("Pay Daily EMI");
 
         customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
         if (customerPhone == null || customerPhone.isEmpty()) {
             customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
         }
 
-        promptPaymentDialog();
+        fetchActiveLoanAndPrompt();
     }
 
-    private void promptPaymentDialog() {
+    private void fetchActiveLoanAndPrompt() {
         Request request = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + customerPhone + "&disbursement_status=eq.DISBURSED&order=id.desc&limit=1")
                 .addHeader("apikey", API_KEY)
@@ -45,16 +51,22 @@ public class PayDailyEmiActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) { finish(); }
+            @Override public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(PayDailyEmiActivity.this, "Network error", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+
             @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) { finish(); return; }
-                String body = response.body().string();
+                String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
                 List<Map<String, Object>> loans = gson.fromJson(body, type);
 
                 if (loans == null || loans.isEmpty()) {
                     runOnUiThread(() -> {
-                        Toast.makeText(PayDailyEmiActivity.this, "No active disbursed loan found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(PayDailyEmiActivity.this, "No active disbursed loan found", Toast.LENGTH_LONG).show();
                         finish();
                     });
                     return;
@@ -67,6 +79,8 @@ public class PayDailyEmiActivity extends AppCompatActivity {
                 double total = activeLoan.get("amount") != null ? ((Double) activeLoan.get("amount")) : 0;
 
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+
                     EditText et = new EditText(PayDailyEmiActivity.this);
                     et.setHint("EMI Amount");
                     et.setText(String.valueOf((int)emi));
@@ -74,11 +88,12 @@ public class PayDailyEmiActivity extends AppCompatActivity {
 
                     new AlertDialog.Builder(PayDailyEmiActivity.this)
                             .setTitle("Pay Daily EMI")
-                            .setMessage("Scheduled EMI: ₹" + (int)emi + "\nTotal Paid So Far: ₹" + (int)currentPaid + " / ₹" + (int)total)
+                            .setMessage("Daily Due: ₹" + (int)emi + "\nTotal Repaid: ₹" + (int)currentPaid + " / ₹" + (int)total)
                             .setView(et)
-                            .setPositiveButton("Pay via Cash/UPI", (dialog, which) -> {
+                            .setCancelable(false)
+                            .setPositiveButton("Submit Payment", (dialog, which) -> {
                                 String val = et.getText().toString().trim();
-                                if (val.isEmpty()) return;
+                                if (val.isEmpty()) { finish(); return; }
                                 double paidNow = Double.parseDouble(val);
                                 recordEmiPayment(loanId, paidNow, currentPaid + paidNow, (currentPaid + paidNow) >= total);
                             })
@@ -92,7 +107,6 @@ public class PayDailyEmiActivity extends AppCompatActivity {
     private void recordEmiPayment(int loanId, double paidNow, double totalPaid, boolean fullyPaid) {
         String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        // 1. Update loan paid_amount
         Map<String, Object> update = new HashMap<>();
         update.put("paid_amount", totalPaid);
         if (fullyPaid) update.put("is_paid", 1);
@@ -106,9 +120,8 @@ public class PayDailyEmiActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(r1).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {}
+            @Override public void onFailure(Call call, IOException e) { finish(); }
             @Override public void onResponse(Call call, Response response) {
-                // 2. Insert transaction
                 Map<String, Object> tx = new HashMap<>();
                 tx.put("loan_id", loanId);
                 tx.put("customer_phone", customerPhone);
@@ -127,10 +140,10 @@ public class PayDailyEmiActivity extends AppCompatActivity {
                         .build();
 
                 client.newCall(r2).enqueue(new Callback() {
-                    @Override public void onFailure(Call call, IOException e) {}
+                    @Override public void onFailure(Call call, IOException e) { finish(); }
                     @Override public void onResponse(Call call, Response resp) {
                         runOnUiThread(() -> {
-                            Toast.makeText(PayDailyEmiActivity.this, "Daily EMI payment recorded successfully!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(PayDailyEmiActivity.this, "Daily EMI paid successfully!", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
