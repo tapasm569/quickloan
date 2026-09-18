@@ -10,7 +10,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuickLoan">
 
-        <!-- Launcher -->
+        <!-- Login Screen (Launcher) -->
         <activity
             android:name=".LoginActivity"
             android:exported="true">
@@ -24,7 +24,7 @@
         <activity android:name=".LenderMainActivity" />
         <activity android:name=".MasterActivity" />
 
-        <!-- Customer Activities (MUST BE LISTED HERE) -->
+        <!-- Customer Activities -->
         <activity android:name=".CustomerProfileActivity" />
         <activity android:name=".CustomerMainActivity" />
     </application>
