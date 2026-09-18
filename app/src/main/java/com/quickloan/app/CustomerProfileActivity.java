@@ -79,9 +79,14 @@ public class CustomerProfileActivity extends AppCompatActivity {
                 final String resBody = response.body() != null ? response.body().string() : "";
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        // Persist session
+                        // Persist complete session
                         SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
-                        prefs.edit().putString("CUSTOMER_PHONE", activePhone).apply();
+                        prefs.edit()
+                                .putString("USER_ROLE", "CUSTOMER")
+                                .putString("USER_PHONE", activePhone)
+                                .putString("CUSTOMER_PHONE", activePhone)
+                                .putBoolean("IS_PROFILE_COMPLETED", true)
+                                .apply();
 
                         Toast.makeText(CustomerProfileActivity.this, "Profile Saved!", Toast.LENGTH_SHORT).show();
 
@@ -96,4 +101,4 @@ public class CustomerProfileActivity extends AppCompatActivity {
             }
         });
     }
-                      }
+}
