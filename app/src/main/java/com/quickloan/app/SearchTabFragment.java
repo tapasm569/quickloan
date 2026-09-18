@@ -36,20 +36,19 @@ public class SearchTabFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.activity_master, container, false);
+        View view = inflater.inflate(R.layout.fragment_search, container, false);
 
-        EditText search = new EditText(getContext());
-        search.setHint("Search by Name, Phone, or Loan ID...");
-        search.setPadding(30, 20, 30, 20);
-
-        rv = view.findViewById(R.id.rvMasterCustomers);
+        EditText etSearch = view.findViewById(R.id.etSearchQuery);
+        rv = view.findViewById(R.id.rvSearchResults);
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
 
         loadAllData();
 
-        search.addTextChangedListener(new TextWatcher() {
+        etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int i, int i1, int i2) {}
-            @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) { filter(s.toString().toLowerCase().trim()); }
+            @Override public void onTextChanged(CharSequence s, int i, int i1, int i2) {
+                filter(s.toString().toLowerCase().trim());
+            }
             @Override public void afterTextChanged(Editable s) {}
         });
 
@@ -68,9 +67,10 @@ public class SearchTabFragment extends Fragment {
             @Override public void onFailure(Call call, IOException e) {}
             @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) return;
-                String body = response.body().string();
+                String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
                 fullList = gson.fromJson(body, type);
+                if (fullList == null) fullList = new ArrayList<>();
                 filter("");
             }
         });
@@ -88,43 +88,51 @@ public class SearchTabFragment extends Fragment {
         }
 
         if (getActivity() != null) {
-            requireActivity().runOnUiThread(() -> rv.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            requireActivity().runOnUiThread(() -> rv.setAdapter(new RecyclerView.Adapter<SearchVH>() {
                 @NonNull
                 @Override
-                public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                public SearchVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                     View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_loan, parent, false);
-                    return new RecyclerView.ViewHolder(v) {};
+                    return new SearchVH(v);
                 }
 
                 @Override
-                public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                public void onBindViewHolder(@NonNull SearchVH holder, int position) {
                     Map<String, Object> l = filtered.get(position);
-                    String phone = String.valueOf(l.get("phone"));
+                    String phone = l.get("phone") != null ? String.valueOf(l.get("phone")) : "";
+                    String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
                     double amt = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
 
-                    ((TextView) holder.itemView.findViewById(R.id.tvCustomerName)).setText(String.valueOf(l.get("name")));
-                    ((TextView) holder.itemView.findViewById(R.id.tvCustomerPhone)).setText(phone);
-                    ((TextView) holder.itemView.findViewById(R.id.tvLoanAmount)).setText("₹" + (int)amt);
+                    holder.tvName.setText(name);
+                    holder.tvPhone.setText(phone);
+                    holder.tvAmount.setText(String.format("₹%.0f", amt));
 
-                    // Phone Call Button
-                    View btnCall = holder.itemView.findViewById(R.id.btnCall);
-                    if (btnCall != null) {
-                        btnCall.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone))));
-                    }
+                    holder.btnCall.setOnClickListener(v -> 
+                        startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
+                    );
 
-                    // WhatsApp Reminder Button
-                    View btnWa = holder.itemView.findViewById(R.id.btnWhatsApp);
-                    if (btnWa != null) {
-                        btnWa.setOnClickListener(v -> {
-                            String clean = phone.replaceAll("[^0-9]", "");
-                            if (clean.length() == 10) clean = "91" + clean;
-                            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean)));
-                        });
-                    }
+                    holder.btnWhatsApp.setOnClickListener(v -> {
+                        String clean = phone.replaceAll("[^0-9]", "");
+                        if (clean.length() == 10) clean = "91" + clean;
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean)));
+                    });
                 }
 
                 @Override public int getItemCount() { return filtered.size(); }
             }));
+        }
+    }
+
+    static class SearchVH extends RecyclerView.ViewHolder {
+        TextView tvName, tvPhone, tvAmount;
+        View btnCall, btnWhatsApp;
+        public SearchVH(@NonNull View itemView) {
+            super(itemView);
+            tvName = itemView.findViewById(R.id.tvCustomerName);
+            tvPhone = itemView.findViewById(R.id.tvCustomerPhone);
+            tvAmount = itemView.findViewById(R.id.tvLoanAmount);
+            btnCall = itemView.findViewById(R.id.btnCall);
+            btnWhatsApp = itemView.findViewById(R.id.btnWhatsApp);
         }
     }
 }
