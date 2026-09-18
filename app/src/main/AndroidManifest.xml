@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Network Access for Supabase REST API -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -11,7 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.QuickLoan">
 
-        <!-- Splash Screen (Now Launcher) -->
+        <!-- 1. App Launch / Splash Screen -->
         <activity
             android:name=".SplashActivity"
             android:exported="true">
@@ -21,12 +22,25 @@
             </intent-filter>
         </activity>
 
-        <!-- Main Flow -->
+        <!-- 2. Authentication & Onboarding -->
         <activity android:name=".LoginActivity" />
+        <activity android:name=".RegisterActivity" />
+        <activity android:name=".CustomerProfileActivity" />
+
+        <!-- 3. Lender Panel Screens -->
         <activity android:name=".LenderMainActivity" />
         <activity android:name=".MasterActivity" />
-        <activity android:name=".CustomerProfileActivity" />
+        <activity android:name=".ApproveLoanActivity" />
+        <activity android:name=".TransferMoneyActivity" />
+
+        <!-- 4. Customer Panel Screens -->
         <activity android:name=".CustomerMainActivity" />
+        <activity android:name=".ApplyLoanActivity" />
+        <activity android:name=".CustomerApprovedLoansActivity" />
+        <activity android:name=".PayDailyEmiActivity" />
+        <activity android:name=".CustomerLedgerActivity" />
+        <activity android:name=".PaymentHistoryActivity" />
+
     </application>
 
 </manifest>
