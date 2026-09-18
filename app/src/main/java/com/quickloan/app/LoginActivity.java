@@ -45,14 +45,19 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // Clean mobile number (extract last 10 digits)
         String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
         if (cleanPhone.length() > 10 && cleanPhone.startsWith("91")) {
             cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
         }
 
-        // 1. Owner / Lender Verification
+        // 1. Lender Persistent Login
         if (cleanPhone.equals(LENDER_PHONE) && password.equals(LENDER_PASS)) {
+            SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
+            prefs.edit()
+                    .putString("USER_ROLE", "LENDER")
+                    .putString("USER_PHONE", LENDER_PHONE)
+                    .apply();
+
             Toast.makeText(this, "Welcome, Lender!", Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(this, LenderMainActivity.class);
             intent.putExtra("LENDER_PHONE", LENDER_PHONE);
@@ -61,7 +66,7 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        // 2. Customer Verification with URL Encoding
+        // 2. Customer Persistent Login
         try {
             String encodedPass = URLEncoder.encode(password, "UTF-8");
             String url = "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." 
@@ -88,7 +93,7 @@ public class LoginActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         try {
                             if (!response.isSuccessful()) {
-                                Toast.makeText(LoginActivity.this, "Database error: " + response.code() + " " + body, Toast.LENGTH_LONG).show();
+                                Toast.makeText(LoginActivity.this, "Database error: " + response.code(), Toast.LENGTH_SHORT).show();
                                 return;
                             }
 
@@ -96,17 +101,13 @@ public class LoginActivity extends AppCompatActivity {
                             List<Map<String, Object>> customers = gson.fromJson(body, listType);
 
                             if (customers == null || customers.isEmpty()) {
-                                Toast.makeText(LoginActivity.this, "No matching customer found for " + finalPhone, Toast.LENGTH_LONG).show();
+                                Toast.makeText(LoginActivity.this, "Invalid phone or password", Toast.LENGTH_SHORT).show();
                                 return;
                             }
 
                             Map<String, Object> user = customers.get(0);
 
-                            // Save session
-                            SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
-                            prefs.edit().putString("CUSTOMER_PHONE", finalPhone).apply();
-
-                            // Verify profile status
+                            // Check profile completion
                             boolean isProfileComplete = false;
                             Object completedObj = user.get("is_profile_completed");
                             if (completedObj != null) {
@@ -115,6 +116,15 @@ public class LoginActivity extends AppCompatActivity {
                                     isProfileComplete = true;
                                 }
                             }
+
+                            // Save Customer Session permanently
+                            SharedPreferences prefs = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE);
+                            prefs.edit()
+                                    .putString("USER_ROLE", "CUSTOMER")
+                                    .putString("USER_PHONE", finalPhone)
+                                    .putString("CUSTOMER_PHONE", finalPhone)
+                                    .putBoolean("IS_PROFILE_COMPLETED", isProfileComplete)
+                                    .apply();
 
                             Intent intent;
                             if (isProfileComplete) {
@@ -127,7 +137,7 @@ public class LoginActivity extends AppCompatActivity {
                             finish();
 
                         } catch (Exception e) {
-                            Toast.makeText(LoginActivity.this, "Parse error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            Toast.makeText(LoginActivity.this, "Login error: " + e.getMessage(), Toast.LENGTH_LONG).show();
                         }
                     });
                 }
@@ -136,4 +146,4 @@ public class LoginActivity extends AppCompatActivity {
             Toast.makeText(this, "Encoding error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
-                                    }
+}
