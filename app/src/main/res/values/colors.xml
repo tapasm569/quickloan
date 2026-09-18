@@ -1,20 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Core Ledger Slate Backgrounds -->
+    <!-- Slate Canvas & Surfaces -->
     <color name="surface_bg">#0B0F19</color>
     <color name="card_bg">#1E293B</color>
     <color name="header_bg">#111827</color>
     <color name="border_light">#334155</color>
+
+    <!-- Legacy Color Keys (Mapped to Slate Theme) -->
+    <color name="background">#0B0F19</color>
+    <color name="primary">#111827</color>
+    <color name="primary_dark">#070A10</color>
+    <color name="accent">#38BDF8</color>
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="pending_color">#F59E0B</color>
+    <color name="paid_color">#10B981</color>
+    <color name="due_color">#F43F5E</color>
 
     <!-- Typography -->
     <color name="text_main">#F8FAFC</color>
     <color name="text_muted">#94A3B8</color>
     <color name="text_subtle">#64748B</color>
 
-    <!-- Brand & Accent Colors -->
+    <!-- Brand Accents & Badges -->
     <color name="brand_primary">#111827</color>
     <color name="brand_accent">#38BDF8</color>
     <color name="brand_emerald">#10B981</color>
     <color name="brand_rose">#F43F5E</color>
     <color name="brand_amber">#F59E0B</color>
+
+    <!-- System Standards -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
 </resources>
