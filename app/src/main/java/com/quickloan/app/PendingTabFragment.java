@@ -1,9 +1,12 @@
 package com.quickloan.app;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -15,8 +18,12 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class PendingTabFragment extends Fragment {
@@ -31,23 +38,74 @@ public class PendingTabFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.activity_simple_list, container, false);
-        ((TextView) view.findViewById(R.id.tvListHeaderTitle)).setText("Pending & Due Loans");
+
+        // Header Title updated to "Due Payment"
+        TextView tvHeader = view.findViewById(R.id.tvListHeaderTitle);
+        if (tvHeader != null) {
+            tvHeader.setText("Due Payment");
+        }
+
         tvEmpty = view.findViewById(R.id.tvEmptyMessage);
         rv = view.findViewById(R.id.rvSimpleList);
         rv.setLayoutManager(new LinearLayoutManager(getContext()));
-        loadPending();
+
+        loadDuePayments();
         return view;
     }
 
-    private void loadPending() {
-        Request request = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?is_paid=eq.0&order=id.desc")
+    @Override
+    public void onResume() {
+        super.onResume();
+        loadDuePayments();
+    }
+
+    private void loadDuePayments() {
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+        // 1. Fetch payments made today to deduct from daily due
+        Request txReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + today + "&payment_type=eq.DAILY_EMI")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
+        client.newCall(txReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                if (getActivity() != null) requireActivity().runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                Map<Integer, Double> todayPaidMap = new HashMap<>();
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
+                    if (txs != null) {
+                        for (Map<String, Object> t : txs) {
+                            if (t.get("loan_id") != null && t.get("amount") != null) {
+                                int loanId = ((Double) t.get("loan_id")).intValue();
+                                double amt = ((Double) t.get("amount"));
+                                todayPaidMap.put(loanId, todayPaidMap.getOrDefault(loanId, 0.0) + amt);
+                            }
+                        }
+                    }
+                }
+
+                // 2. Fetch active loans
+                fetchActiveLoans(todayPaidMap);
+            }
+        });
+    }
+
+    private void fetchActiveLoans(Map<Integer, Double> todayPaidMap) {
+        Request loanReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.DISBURSED&is_paid=eq.0&order=id.desc")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(loanReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 if (getActivity() != null) requireActivity().runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
             }
@@ -56,34 +114,71 @@ public class PendingTabFragment extends Fragment {
                 if (!response.isSuccessful()) return;
                 String body = response.body() != null ? response.body().string() : "";
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> list = gson.fromJson(body, type);
-                if (list == null) list = new ArrayList<>();
+                List<Map<String, Object>> loans = gson.fromJson(body, type);
+                if (loans == null) loans = new ArrayList<>();
 
-                List<Map<String, Object>> finalList = list;
+                List<Map<String, Object>> dueList = new ArrayList<>();
+                for (Map<String, Object> l : loans) {
+                    int loanId = ((Double) l.get("id")).intValue();
+                    double emi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
+                    double paidToday = todayPaidMap.getOrDefault(loanId, 0.0);
+                    double effectiveDueToday = Math.max(0.0, emi - paidToday);
+
+                    // If borrower still has due today, include them
+                    if (effectiveDueToday > 0) {
+                        l.put("current_today_due", effectiveDueToday);
+                        dueList.add(l);
+                    }
+                }
+
                 if (getActivity() != null) {
                     requireActivity().runOnUiThread(() -> {
-                        if (finalList.isEmpty()) {
+                        if (dueList.isEmpty()) {
                             tvEmpty.setVisibility(View.VISIBLE);
-                            return;
+                            tvEmpty.setText("No pending dues for today! All borrowers paid.");
+                        } else {
+                            tvEmpty.setVisibility(View.GONE);
                         }
-                        tvEmpty.setVisibility(View.GONE);
-                        rv.setAdapter(new RecyclerView.Adapter<RecordVH>() {
-                            @NonNull @Override public RecordVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_simple_record, parent, false);
-                                return new RecordVH(v);
+
+                        rv.setAdapter(new RecyclerView.Adapter<DueItemVH>() {
+                            @NonNull
+                            @Override public DueItemVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_due_payment, parent, false);
+                                return new DueItemVH(v);
                             }
 
-                            @Override public void onBindViewHolder(@NonNull RecordVH holder, int position) {
-                                Map<String, Object> l = finalList.get(position);
+                            @Override public void onBindViewHolder(@NonNull DueItemVH holder, int position) {
+                                Map<String, Object> l = dueList.get(position);
+                                String phone = String.valueOf(l.get("phone"));
+                                String name = l.get("name") != null ? String.valueOf(l.get("name")) : "Borrower";
+                                if (name.startsWith("Borrower (")) name = phone;
+
+                                double todaysDue = l.get("current_today_due") != null ? ((Double) l.get("current_today_due")) : 0;
                                 double total = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
                                 double paid = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
-                                double emi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
+                                double remainingBalance = Math.max(0.0, total - paid);
 
-                                holder.t1.setText(l.get("phone") + " | Due: ₹" + (int)(total - paid));
-                                holder.t2.setText("Daily EMI: ₹" + (int)emi + " | Due Date: " + l.get("due_date"));
+                                holder.tvName.setText(name);
+                                holder.tvPhone.setText("+91 " + phone);
+                                holder.tvTodayDue.setText(String.format(Locale.getDefault(), "₹%.0f", todaysDue));
+                                holder.tvRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", remainingBalance));
+
+                                // Call
+                                final String dialPhone = phone;
+                                holder.btnCall.setOnClickListener(v -> 
+                                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + dialPhone)))
+                                );
+
+                                // WhatsApp
+                                holder.btnWhatsApp.setOnClickListener(v -> {
+                                    String clean = dialPhone.replaceAll("[^0-9]", "");
+                                    if (clean.length() == 10) clean = "91" + clean;
+                                    String msg = "Hello " + holder.tvName.getText() + ", your daily EMI of ₹" + (int)todaysDue + " is due today. Please pay today.";
+                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean + "&text=" + Uri.encode(msg))));
+                                });
                             }
 
-                            @Override public int getItemCount() { return finalList.size(); }
+                            @Override public int getItemCount() { return dueList.size(); }
                         });
                     });
                 }
@@ -91,12 +186,18 @@ public class PendingTabFragment extends Fragment {
         });
     }
 
-    static class RecordVH extends RecyclerView.ViewHolder {
-        TextView t1, t2;
-        RecordVH(@NonNull View v) {
+    static class DueItemVH extends RecyclerView.ViewHolder {
+        TextView tvName, tvPhone, tvTodayDue, tvRemaining;
+        Button btnCall, btnWhatsApp;
+
+        DueItemVH(@NonNull View v) {
             super(v);
-            t1 = v.findViewById(R.id.tvRecordTitle);
-            t2 = v.findViewById(R.id.tvRecordSubtitle);
+            tvName = v.findViewById(R.id.tvDueName);
+            tvPhone = v.findViewById(R.id.tvDuePhone);
+            tvTodayDue = v.findViewById(R.id.tvDueTodayAmount);
+            tvRemaining = v.findViewById(R.id.tvDueRemainingBalance);
+            btnCall = v.findViewById(R.id.btnDueCall);
+            btnWhatsApp = v.findViewById(R.id.btnDueWhatsApp);
         }
     }
 }
