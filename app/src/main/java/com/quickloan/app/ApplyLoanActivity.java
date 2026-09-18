@@ -11,12 +11,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -31,6 +34,7 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private Button btn5k, btn10k, btn15k, btn20k, btn30k, btn50k;
     private Button btn30, btn60, btn90, btn180;
     private String customerPhone = "";
+    private String customerName = "";
 
     private double selectedPrincipal = 10000;
     private int selectedDays = 30;
@@ -38,48 +42,70 @@ public class ApplyLoanActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try {
-            setContentView(R.layout.activity_apply_loan);
+        setContentView(R.layout.activity_apply_loan);
 
-            customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
-            if (customerPhone == null || customerPhone.isEmpty()) {
-                customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
-            }
-
-            // Input & Display Views
-            etAmount = findViewById(R.id.etCustomAmount);
-            etDays = findViewById(R.id.etCustomDays);
-            etNote = findViewById(R.id.etApplyNote);
-            tvRate = findViewById(R.id.tvCalcRate);
-            tvTotal = findViewById(R.id.tvCalcTotal);
-            tvDailyEmi = findViewById(R.id.tvCalcDailyEmi);
-
-            // Amount Buttons
-            btn5k = findViewById(R.id.btnAmt5k);
-            btn10k = findViewById(R.id.btnAmt10k);
-            btn15k = findViewById(R.id.btnAmt15k);
-            btn20k = findViewById(R.id.btnAmt20k);
-            btn30k = findViewById(R.id.btnAmt30k);
-            btn50k = findViewById(R.id.btnAmt50k);
-
-            // Tenure Buttons
-            btn30 = findViewById(R.id.btnTenure30);
-            btn60 = findViewById(R.id.btnTenure60);
-            btn90 = findViewById(R.id.btnTenure90);
-            btn180 = findViewById(R.id.btnTenure180);
-
-            setupAmountButtons();
-            setupTenureButtons();
-            setupCustomInputs();
-
-            findViewById(R.id.btnSubmitLoan).setOnClickListener(v -> submitLoanApplication());
-
-            recalculate();
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Error initializing: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            finish();
+        customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
+        if (customerPhone == null || customerPhone.isEmpty()) {
+            customerPhone = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_PHONE", "");
         }
+
+        customerName = getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).getString("CUSTOMER_NAME", "");
+        if (customerName.isEmpty()) {
+            fetchRegisteredName();
+        }
+
+        etAmount = findViewById(R.id.etCustomAmount);
+        etDays = findViewById(R.id.etCustomDays);
+        etNote = findViewById(R.id.etApplyNote);
+        tvRate = findViewById(R.id.tvCalcRate);
+        tvTotal = findViewById(R.id.tvCalcTotal);
+        tvDailyEmi = findViewById(R.id.tvCalcDailyEmi);
+
+        btn5k = findViewById(R.id.btnAmt5k);
+        btn10k = findViewById(R.id.btnAmt10k);
+        btn15k = findViewById(R.id.btnAmt15k);
+        btn20k = findViewById(R.id.btnAmt20k);
+        btn30k = findViewById(R.id.btnAmt30k);
+        btn50k = findViewById(R.id.btnAmt50k);
+
+        btn30 = findViewById(R.id.btnTenure30);
+        btn60 = findViewById(R.id.btnTenure60);
+        btn90 = findViewById(R.id.btnTenure90);
+        btn180 = findViewById(R.id.btnTenure180);
+
+        setupAmountButtons();
+        setupTenureButtons();
+        setupCustomInputs();
+
+        findViewById(R.id.btnSubmitLoan).setOnClickListener(v -> submitLoanApplication());
+
+        recalculate();
+    }
+
+    private void fetchRegisteredName() {
+        Request req = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + customerPhone)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(req).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {}
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> list = gson.fromJson(response.body().string(), type);
+                    if (list != null && !list.isEmpty()) {
+                        Object n = list.get(0).get("name");
+                        if (n != null) {
+                            customerName = n.toString();
+                            getSharedPreferences("QUICK_LOAN_PREFS", MODE_PRIVATE).edit().putString("CUSTOMER_NAME", customerName).apply();
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void setupAmountButtons() {
@@ -94,14 +120,9 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private void selectAmount(double amount, Button selectedBtn) {
         selectedPrincipal = amount;
         etAmount.setText("");
-
-        // Reset and highlight active button
         Button[] btns = {btn5k, btn10k, btn15k, btn20k, btn30k, btn50k};
-        for (Button b : btns) {
-            b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
-        }
+        for (Button b : btns) b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
         selectedBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2563EB")));
-
         recalculate();
     }
 
@@ -115,13 +136,9 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private void selectTenure(int days, Button selectedBtn) {
         selectedDays = days;
         etDays.setText("");
-
         Button[] btns = {btn30, btn60, btn90, btn180};
-        for (Button b : btns) {
-            b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
-        }
+        for (Button b : btns) b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#1E293B")));
         selectedBtn.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2563EB")));
-
         recalculate();
     }
 
@@ -160,18 +177,7 @@ public class ApplyLoanActivity extends AppCompatActivity {
     private void recalculate() {
         if (selectedPrincipal <= 0 || selectedDays <= 0) return;
 
-        // Tiered Annual Interest Calculation
-        double annualRate;
-        if (selectedPrincipal <= 10000) {
-            annualRate = 10.0;
-        } else if (selectedPrincipal <= 20000) {
-            annualRate = 15.0;
-        } else if (selectedPrincipal <= 30000) {
-            annualRate = 20.0;
-        } else {
-            annualRate = 30.0;
-        }
-
+        double annualRate = selectedPrincipal <= 10000 ? 10.0 : (selectedPrincipal <= 20000 ? 15.0 : (selectedPrincipal <= 30000 ? 20.0 : 30.0));
         double interestAmt = (selectedPrincipal * annualRate * selectedDays) / (365.0 * 100.0);
         double totalPayable = selectedPrincipal + interestAmt;
         double dailyEmi = totalPayable / selectedDays;
@@ -204,8 +210,11 @@ public class ApplyLoanActivity extends AppCompatActivity {
         cal.add(Calendar.DAY_OF_YEAR, selectedDays);
         String dueDate = sdf.format(cal.getTime());
 
+        // Use the registered customer name
+        String finalName = (customerName != null && !customerName.isEmpty()) ? customerName : "Customer (" + customerPhone + ")";
+
         Map<String, Object> map = new HashMap<>();
-        map.put("name", "Borrower (" + customerPhone + ")");
+        map.put("name", finalName);
         map.put("phone", customerPhone);
         map.put("customer_phone", customerPhone);
         map.put("lender_phone", "9932655607");
@@ -232,20 +241,17 @@ public class ApplyLoanActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> Toast.makeText(ApplyLoanActivity.this, "Network Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String resBody = response.body() != null ? response.body().string() : "";
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 runOnUiThread(() -> {
                     if (response.isSuccessful()) {
-                        Toast.makeText(ApplyLoanActivity.this, "Loan application submitted for approval!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(ApplyLoanActivity.this, "Loan application submitted!", Toast.LENGTH_LONG).show();
                         finish();
                     } else {
-                        Toast.makeText(ApplyLoanActivity.this, "Failed (" + response.code() + "): " + resBody, Toast.LENGTH_LONG).show();
+                        Toast.makeText(ApplyLoanActivity.this, "Failed (" + response.code() + ")", Toast.LENGTH_LONG).show();
                     }
                 });
             }
