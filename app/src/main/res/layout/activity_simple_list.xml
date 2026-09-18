@@ -8,11 +8,12 @@
     <TextView
         android:id="@+id/tvListHeaderTitle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/brand_primary"
-        android:padding="16dp"
+        android:layout_height="56dp"
+        android:background="@color/header_bg"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
         android:text="Details"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/text_main"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -23,12 +24,13 @@
         android:gravity="center"
         android:padding="30dp"
         android:text="No records found"
-        android:textColor="@color/text_muted"
+        android:textColor="@color/text_subtle"
         android:visibility="gone" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvSimpleList"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="10dp" />
+        android:clipToPadding="false"
+        android:padding="8dp" />
 </LinearLayout>
