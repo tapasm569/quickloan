@@ -6,20 +6,40 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Main Screen Content -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="@color/surface_bg">
 
-        <!-- Toolbar with Hamburger Icon -->
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbarLender"
+        <!-- Top Header Bar with Right Hamburger -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="60dp"
             android:background="@color/brand_primary"
-            app:title="Quick Loan Pro"
-            app:titleTextColor="#FFFFFF" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Quick Loan Pro"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnLenderRightHamburger"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Menu"
+                android:src="@android:drawable/ic_menu_sort_by_size"
+                app:tint="#FFFFFF" />
+        </LinearLayout>
 
         <!-- Header Tabs with Icons -->
         <com.google.android.material.tabs.TabLayout
@@ -33,23 +53,22 @@
             app:tabGravity="fill"
             app:tabMode="fixed" />
 
-        <!-- WhatsApp-style swipeable screen container -->
+        <!-- Swipeable Screen ViewPager -->
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/viewPager"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
     </LinearLayout>
 
-    <!-- 3-Line Hamburger Slide-Out Drawer -->
+    <!-- Right-Hand Side Drawer (layout_gravity="end") -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view_lender"
         android:layout_width="260dp"
         android:layout_height="match_parent"
-        android:layout_gravity="start"
+        android:layout_gravity="end"
         android:background="@color/card_bg"
         app:itemTextColor="@color/text_main"
         app:itemIconTint="@color/brand_primary"
         app:menu="@menu/lender_drawer_menu" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
-    
