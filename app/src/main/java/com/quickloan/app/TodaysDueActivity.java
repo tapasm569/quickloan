@@ -20,9 +20,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,11 +36,14 @@ public class TodaysDueActivity extends AppCompatActivity {
 
     private RecyclerView rv;
     private TextView tvTotalDue, tvEmpty;
+    private String todayIndianDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_todays_due);
+
+        todayIndianDate = DateHelper.getTodayDate();
 
         tvTotalDue = findViewById(R.id.tvTotalDueAmount);
         tvEmpty = findViewById(R.id.tvEmptyDue);
@@ -53,11 +54,8 @@ public class TodaysDueActivity extends AppCompatActivity {
     }
 
     private void loadTodaysDue() {
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-
-        // Step 1: Check which loans have already paid their daily EMI today
         Request txReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + today + "&payment_type=eq.DAILY_EMI")
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -75,14 +73,13 @@ public class TodaysDueActivity extends AppCompatActivity {
                     List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
                     if (txs != null) {
                         for (Map<String, Object> t : txs) {
-                            if (t.get("loan_id") != null) {
+                            String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
+                            if (todayIndianDate.equals(txDate) && "DAILY_EMI".equals(t.get("payment_type")) && t.get("loan_id") != null) {
                                 paidTodayLoanIds.add(((Double) t.get("loan_id")).intValue());
                             }
                         }
                     }
                 }
-
-                // Step 2: Fetch all active disbursed loans and exclude loans that paid today
                 fetchActiveLoans(paidTodayLoanIds);
             }
         });
@@ -113,7 +110,6 @@ public class TodaysDueActivity extends AppCompatActivity {
                 if (allLoans != null) {
                     for (Map<String, Object> l : allLoans) {
                         int loanId = ((Double) l.get("id")).intValue();
-                        // Exclude if already paid today
                         if (!paidTodayLoanIds.contains(loanId)) {
                             dueTodayLoans.add(l);
                             double emi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
@@ -154,15 +150,12 @@ public class TodaysDueActivity extends AppCompatActivity {
                             holder.tvEmi.setText("₹" + (int)emi + " / day");
                             holder.tvRemaining.setText("Rem: ₹" + (int)remaining);
 
-                            // Receive EMI Button
                             holder.btnCollect.setOnClickListener(v -> showCollectDialog(loanId, phone, emi, paid, total));
 
-                            // Phone Call Button
                             holder.btnCall.setOnClickListener(v -> 
                                 startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
                             );
 
-                            // WhatsApp Reminder Button
                             holder.btnWa.setOnClickListener(v -> {
                                 String clean = phone.replaceAll("[^0-9]", "");
                                 if (clean.length() == 10) clean = "91" + clean;
@@ -205,9 +198,8 @@ public class TodaysDueActivity extends AppCompatActivity {
     }
 
     private void recordPayment(int loanId, String phone, double paidNow, double totalPaid, boolean fullyPaid, String mode) {
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+        String today = DateHelper.getTodayDate();
 
-        // 1. Update loan paid amount & status
         Map<String, Object> update = new HashMap<>();
         update.put("paid_amount", totalPaid);
         if (fullyPaid) update.put("is_paid", 1);
@@ -224,7 +216,6 @@ public class TodaysDueActivity extends AppCompatActivity {
             @Override public void onFailure(Call call, IOException e) {}
 
             @Override public void onResponse(Call call, Response response) {
-                // 2. Insert into loan_transactions table
                 Map<String, Object> tx = new HashMap<>();
                 tx.put("loan_id", loanId);
                 tx.put("customer_phone", phone);
@@ -247,8 +238,8 @@ public class TodaysDueActivity extends AppCompatActivity {
 
                     @Override public void onResponse(Call call, Response resp) {
                         runOnUiThread(() -> {
-                            Toast.makeText(TodaysDueActivity.this, "Paid! Removed from Today's Due and added to Today's Payment", Toast.LENGTH_SHORT).show();
-                            loadTodaysDue(); // Re-fetch immediately removes user and updates total due
+                            Toast.makeText(TodaysDueActivity.this, "Payment recorded for " + today, Toast.LENGTH_SHORT).show();
+                            loadTodaysDue();
                         });
                     }
                 });
