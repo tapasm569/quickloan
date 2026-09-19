@@ -92,7 +92,6 @@ public class ApproveLoanActivity extends AppCompatActivity {
     }
 
     private void loadPendingLoans() {
-        // Query loans where disbursement_status is PENDING or status is PENDING
         String url = "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?select=*&or=%28disbursement_status.eq.PENDING%2Cstatus.eq.PENDING%29&order=id.desc";
 
         Request req = new Request.Builder()
@@ -270,7 +269,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         etRate.addTextChangedListener(watcher);
         etTenure.addTextChangedListener(watcher);
 
-        // Action Buttons: Reject & Approve
+        // Buttons
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         btnRow.setGravity(Gravity.END);
@@ -420,7 +419,8 @@ public class ApproveLoanActivity extends AppCompatActivity {
         @NonNull
         @Override
         public PendingVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
+            // Uses its own dedicated layout so it never alters Search or Master Client views
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_approve_loan, parent, false);
             return new PendingVH(v);
         }
 
@@ -432,16 +432,13 @@ public class ApproveLoanActivity extends AppCompatActivity {
                     parseDoubleSafe(l.get("principal"), 0) :
                     parseDoubleSafe(l.get("amount"), 0);
 
-            holder.tvName.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
+            holder.tvAmount.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
             holder.tvPhone.setText("+91 " + phone);
-            holder.tvDue.setText("PENDING");
+            holder.tvStatus.setText("PENDING");
 
-            holder.btnAction.setText("Review & Approve");
-            holder.btnAction.setBackgroundColor(Color.parseColor("#10B981"));
-            holder.btnAction.setOnClickListener(v -> openEditAndApproveDialog(l));
+            holder.btnApprove.setOnClickListener(v -> openEditAndApproveDialog(l));
 
             if (holder.btnCall != null) {
-                holder.btnCall.setVisibility(View.VISIBLE);
                 holder.btnCall.setOnClickListener(v -> {
                     Intent callIntent = new Intent(Intent.ACTION_DIAL);
                     callIntent.setData(Uri.parse("tel:" + phone));
@@ -456,18 +453,17 @@ public class ApproveLoanActivity extends AppCompatActivity {
         }
 
         class PendingVH extends RecyclerView.ViewHolder {
-            TextView tvName, tvPhone, tvDue;
-            Button btnAction, btnCall;
+            TextView tvAmount, tvPhone, tvStatus;
+            Button btnApprove, btnCall;
 
             PendingVH(@NonNull View v) {
                 super(v);
-                tvName = v.findViewById(R.id.tvClientName);
-                tvPhone = v.findViewById(R.id.tvClientPhone);
-                tvDue = v.findViewById(R.id.tvClientDueBalance);
-                btnAction = v.findViewById(R.id.btnViewClientProfile);
-                btnCall = v.findViewById(R.id.btnCallClient);
+                tvAmount = v.findViewById(R.id.tvApplicantAmount);
+                tvPhone = v.findViewById(R.id.tvApplicantPhone);
+                tvStatus = v.findViewById(R.id.tvLoanStatusBadge);
+                btnApprove = v.findViewById(R.id.btnReviewApprove);
+                btnCall = v.findViewById(R.id.btnCallApplicant);
             }
         }
     }
-    }
-                           
+}
