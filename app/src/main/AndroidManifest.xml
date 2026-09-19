@@ -1,53 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Network Access for Supabase REST API -->
+    <!-- Network and Communication Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- Android 11+ Package Visibility Declarations -->
+    <queries>
+        <!-- WhatsApp Package Visibility -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+
+        <!-- PDF Reader Viewers -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/pdf" />
+        </intent>
+
+        <!-- Phone Dialer -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
-        android:roundIcon="@drawable/ic_launcher_round"
-        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:label="QuickLoan"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.QuickLoan">
+        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+        android:usesCleartextTraffic="true">
 
-        <!-- 1. App Launch & Session Router -->
+        <!-- Splash Screen (App Launch Entry Point) -->
         <activity
             android:name=".SplashActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- 2. Authentication & Onboarding -->
-        <activity 
-            android:name=".LoginActivity" 
-            android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".RegisterActivity" />
-        <activity 
-            android:name=".CustomerProfileActivity" 
+        <!-- Authentication Activities -->
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- 3. Lender Panel Activities -->
-        <activity android:name=".LenderMainActivity" />
-        <activity android:name=".MasterActivity" />
-        <activity android:name=".ApproveLoanActivity" />
-        <activity android:name=".TransferMoneyActivity" />
-        <activity android:name=".TodaysDueActivity" />
-        <activity android:name=".TodaysPaymentActivity" />
-
-        <!-- 4. Customer Panel Activities -->
-        <activity android:name=".CustomerMainActivity" />
-        <activity 
-            android:name=".ApplyLoanActivity" 
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".CustomerApprovedLoansActivity" />
-        <activity android:name=".PayDailyEmiActivity" />
-        <activity android:name=".CustomerLedgerActivity" />
-        <activity android:name=".PaymentHistoryActivity" />
+
+        <!-- Lender Portal Activities -->
+        <activity
+            android:name=".LenderMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".MasterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".ApproveLoanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".TransferMoneyActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".TodaysDueActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".TodaysPaymentActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".PaymentHistoryActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".CustomerProfileActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- Customer Portal Activities -->
+        <activity
+            android:name=".CustomerMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ApplyLoanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".CustomerApprovedLoansActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".CustomerLedgerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".PayDailyEmiActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- FileProvider for PDF Viewing and WhatsApp Sharing -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 
