@@ -132,15 +132,15 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
         // Title
         TextView tvTitle = new TextView(this);
-        tvTitle.setText("Review & Edit Loan");
+        tvTitle.setText("Review & Edit Loan Terms");
         tvTitle.setTextColor(Color.WHITE);
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         tvTitle.setTypeface(null, Typeface.BOLD);
         container.addView(tvTitle);
 
-        // Borrower Info
+        // Customer Info
         TextView tvSub = new TextView(this);
-        tvSub.setText("Borrower: +91 " + phone);
+        tvSub.setText("Applicant: +91 " + phone);
         tvSub.setTextColor(Color.parseColor("#94A3B8"));
         tvSub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         tvSub.setPadding(0, dpToPx(2), 0, dpToPx(12));
@@ -164,7 +164,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         EditText etTenure = createInput(String.valueOf(initialTenure), InputType.TYPE_CLASS_NUMBER);
         container.addView(etTenure);
 
-        // Live Calculation Box
+        // Real-Time Calculation Box
         LinearLayout calcBox = new LinearLayout(this);
         calcBox.setOrientation(LinearLayout.VERTICAL);
         calcBox.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
@@ -212,7 +212,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
                     finalPayable[0] = p + interest;
                     finalEmi[0] = finalPayable[0] / t;
 
-                    tvInterest.setText(String.format(Locale.getDefault(), "Interest: ₹%.0f", interest));
+                    tvInterest.setText(String.format(Locale.getDefault(), "Total Interest: ₹%.0f", interest));
                     tvPayable.setText(String.format(Locale.getDefault(), "Total Repayment: ₹%.0f", finalPayable[0]));
                     tvDailyEmi.setText(String.format(Locale.getDefault(), "Daily EMI: ₹%.0f / day", finalEmi[0]));
                 }
@@ -231,7 +231,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         etRate.addTextChangedListener(watcher);
         etTenure.addTextChangedListener(watcher);
 
-        // Action Buttons Row
+        // Buttons
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         btnRow.setGravity(Gravity.END);
@@ -243,7 +243,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> dialog.dismiss());
 
         Button btnApprove = new Button(this);
-        btnApprove.setText("Approve Loan");
+        btnApprove.setText("Confirm & Approve");
         btnApprove.setTextColor(Color.WHITE);
         btnApprove.setTypeface(null, Typeface.BOLD);
         btnApprove.setBackgroundColor(Color.parseColor("#10B981"));
@@ -261,7 +261,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
                 dialog.dismiss();
                 executeApproveLoan(loanId, p, finalPayable[0], r, t, finalEmi[0]);
             } catch (Exception e) {
-                Toast.makeText(this, "Invalid loan parameters", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please verify all numerical values", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -326,7 +326,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
         client.newCall(req).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Network error updating loan", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Network error approving loan", Toast.LENGTH_SHORT).show());
             }
 
             @Override public void onResponse(Call call, Response response) {
@@ -360,7 +360,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
             holder.tvName.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
             holder.tvPhone.setText("+91 " + phone);
-            holder.tvDue.setText("PENDING");
+            holder.tvDue.setText("PENDING APPROVAL");
 
             holder.btnAction.setText("Review & Approve");
             holder.btnAction.setBackgroundColor(Color.parseColor("#10B981"));
