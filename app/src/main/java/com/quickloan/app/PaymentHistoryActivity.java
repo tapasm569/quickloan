@@ -2,10 +2,13 @@ package com.quickloan.app;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -13,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
@@ -31,7 +35,12 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
     private TextView tvDateBadge, tvTotalDue, tvTodayPaid, tvDisbursementBalance, tvTotalRemaining, tvInterestCollected, tvEmpty;
     private RecyclerView rvTable;
+    private Button btnViewPdf, btnSendWa;
     private String todayIndianDate;
+
+    // Retained data for PDF generation
+    private final List<SlateEntry> currentSlateEntries = new ArrayList<>();
+    private double curDue = 0, curPaid = 0, curDisbursed = 0, curRemaining = 0, curProfit = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,9 +50,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         todayIndianDate = DateHelper.getTodayDate();
 
         View btnBack = findViewById(R.id.btnBackLedger);
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> finish());
-        }
+        if (btnBack != null) btnBack.setOnClickListener(v -> finish());
 
         tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
         tvTotalDue = findViewById(R.id.tvSlateTotalDue);
@@ -53,30 +60,51 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         tvInterestCollected = findViewById(R.id.tvSlateInterestCollected);
         tvEmpty = findViewById(R.id.tvEmptySlate);
 
-        if (tvDateBadge != null) {
-            tvDateBadge.setText(todayIndianDate);
-        }
+        btnViewPdf = findViewById(R.id.btnLenderViewPdf);
+        btnSendWa = findViewById(R.id.btnLenderSendWa);
+
+        if (tvDateBadge != null) tvDateBadge.setText(todayIndianDate);
 
         rvTable = findViewById(R.id.rvSlateTable);
-        if (rvTable != null) {
-            rvTable.setLayoutManager(new LinearLayoutManager(this));
-        }
+        if (rvTable != null) rvTable.setLayoutManager(new LinearLayoutManager(this));
 
+        setupPdfButtons();
         loadCustomerNamesAndData();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        loadCustomerNamesAndData();
+    private void setupPdfButtons() {
+        btnViewPdf.setOnClickListener(v -> {
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+            if (dir == null) dir = getFilesDir();
+            File expectedPdf = new File(dir, "Lender_Ledger_" + todayIndianDate.replace("-", "_") + ".pdf");
+
+            // Condition: Directly open from storage if file is already created; otherwise generate and open
+            if (expectedPdf.exists() && expectedPdf.length() > 0) {
+                PdfHelper.openPdfFromStorage(PaymentHistoryActivity.this, expectedPdf);
+            } else {
+                File generated = PdfHelper.generateLenderPdf(PaymentHistoryActivity.this, todayIndianDate, curDue, curPaid, curDisbursed, curRemaining, curProfit, currentSlateEntries);
+                if (generated != null && generated.exists()) {
+                    PdfHelper.openPdfFromStorage(PaymentHistoryActivity.this, generated);
+                } else {
+                    Toast.makeText(PaymentHistoryActivity.this, "Failed to generate PDF.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        btnSendWa.setOnClickListener(v -> {
+            File generated = PdfHelper.generateLenderPdf(PaymentHistoryActivity.this, todayIndianDate, curDue, curPaid, curDisbursed, curRemaining, curProfit, currentSlateEntries);
+            if (generated != null && generated.exists()) {
+                PdfHelper.sendPdfToWhatsApp(PaymentHistoryActivity.this, generated);
+            } else {
+                Toast.makeText(PaymentHistoryActivity.this, "Failed to prepare PDF for WhatsApp.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private double parseDoubleSafe(Object obj) {
         if (obj == null) return 0.0;
         try {
-            String s = String.valueOf(obj).trim();
-            if (s.isEmpty()) return 0.0;
-            return Double.parseDouble(s);
+            return Double.parseDouble(String.valueOf(obj).trim());
         } catch (Exception e) {
             return 0.0;
         }
@@ -85,49 +113,10 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private int parseIntSafe(Object obj) {
         if (obj == null) return 0;
         try {
-            String s = String.valueOf(obj).trim();
-            if (s.isEmpty()) return 0;
-            return (int) Double.parseDouble(s);
+            return (int) Double.parseDouble(String.valueOf(obj).trim());
         } catch (Exception e) {
             return 0;
         }
-    }
-
-    private int calculateDaysElapsed(String startDateStr) {
-        if (startDateStr == null || startDateStr.trim().isEmpty()) return 1;
-        try {
-            SimpleDateFormat sdf;
-            if (startDateStr.contains("-")) {
-                String[] parts = startDateStr.split("-");
-                if (parts[0].length() == 4) {
-                    sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                } else {
-                    sdf = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
-                }
-            } else {
-                return 1;
-            }
-
-            Date start = sdf.parse(startDateStr);
-            SimpleDateFormat zeroFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            Date startZero = zeroFormat.parse(zeroFormat.format(start));
-            Date nowZero = zeroFormat.parse(zeroFormat.format(new Date()));
-
-            if (startZero != null && nowZero != null) {
-                long diff = nowZero.getTime() - startZero.getTime();
-                int days = (int) (diff / (1000 * 60 * 60 * 24)) + 1;
-                return Math.max(1, days);
-            }
-        } catch (Exception ignored) {}
-        return 1;
-    }
-
-    private double calculateAccumulatedDueSafe(String startDate, double dailyEmi, double totalAmount, double paidAmount) {
-        int days = calculateDaysElapsed(startDate);
-        double expectedDue = days * dailyEmi;
-        double remainingBalance = Math.max(0.0, totalAmount - paidAmount);
-        double overdue = Math.max(0.0, expectedDue - paidAmount);
-        return Math.min(overdue, remainingBalance);
     }
 
     private void loadCustomerNamesAndData() {
@@ -139,13 +128,11 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(custReq).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 fetchTodayTransactions(new HashMap<>());
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 Map<String, String> phoneToName = new HashMap<>();
                 if (response.isSuccessful() && response.body() != null) {
                     try {
@@ -174,13 +161,11 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(txReq).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 fetchLoansAndBuildSlate(new HashMap<>(), 0.0, phoneToName);
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 Map<Integer, Double> loanTodayPaidMap = new HashMap<>();
                 double totalTodayPaidSum = 0;
 
@@ -220,15 +205,13 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(loanReq).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) return;
                 List<Map<String, Object>> loans = new ArrayList<>();
                 try {
@@ -238,20 +221,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     if (res != null) loans = res;
                 } catch (Exception ignored) {}
 
-                List<SlateEntry> slateEntries = new ArrayList<>();
-                double sumDue = 0;
-                double sumDisbursed = 0;
-                double sumRemaining = 0;
-                double sumInterestProfit = 0;
+                List<SlateEntry> entries = new ArrayList<>();
+                double sumDue = 0, sumDisbursed = 0, sumRemaining = 0, sumInterestProfit = 0;
 
                 int sl = 1;
                 for (Map<String, Object> l : loans) {
                     int loanId = parseIntSafe(l.get("id"));
                     String phone = String.valueOf(l.get("phone"));
                     String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
-                    if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
-                        name = phone;
-                    }
+                    if (name == null || name.isEmpty() || name.startsWith("Borrower (")) name = phone;
 
                     String startDate = l.get("date") != null ? String.valueOf(l.get("date")) : "";
                     double principal = parseDoubleSafe(l.get("principal"));
@@ -262,13 +240,13 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     double totalPaidOverall = parseDoubleSafe(l.get("paid_amount"));
 
                     double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
-                    double accumulatedDue = calculateAccumulatedDueSafe(startDate, dailyEmi, totalAmount, totalPaidOverall);
+                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, totalPaidOverall);
                     double todayCollection = loanTodayPaidMap.getOrDefault(loanId, 0.0);
 
                     double totalInterestExpected = Math.max(0.0, totalAmount - principal);
                     double interestProfit = totalAmount > 0 ? (totalPaidOverall * (totalInterestExpected / totalAmount)) : 0.0;
 
-                    slateEntries.add(new SlateEntry(sl++, name, accumulatedDue, todayCollection, totalPaidOverall, remainingBalance));
+                    entries.add(new SlateEntry(sl++, name, accumulatedDue, todayCollection, totalPaidOverall, remainingBalance));
 
                     sumDue += accumulatedDue;
                     sumDisbursed += principal;
@@ -276,53 +254,45 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     sumInterestProfit += interestProfit;
                 }
 
-                double finalSumDue = sumDue;
-                double finalDisbursed = sumDisbursed;
-                double finalRemaining = sumRemaining;
-                double finalProfit = sumInterestProfit;
+                curDue = sumDue;
+                curPaid = totalTodayPaidSum;
+                curDisbursed = sumDisbursed;
+                curRemaining = sumRemaining;
+                curProfit = sumInterestProfit;
 
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
 
-                    if (tvTotalDue != null) {
-                        tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumDue));
-                    }
-                    if (tvTodayPaid != null) {
-                        tvTodayPaid.setText(String.format(Locale.getDefault(), "₹%.0f", totalTodayPaidSum));
-                    }
-                    if (tvDisbursementBalance != null) {
-                        tvDisbursementBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalDisbursed));
-                    }
-                    if (tvTotalRemaining != null) {
-                        tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalRemaining));
-                    }
-                    if (tvInterestCollected != null) {
-                        tvInterestCollected.setText(String.format(Locale.getDefault(), "₹%.0f", finalProfit));
-                    }
+                    currentSlateEntries.clear();
+                    currentSlateEntries.addAll(entries);
 
-                    if (slateEntries.isEmpty()) {
+                    if (tvTotalDue != null) tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", curDue));
+                    if (tvTodayPaid != null) tvTodayPaid.setText(String.format(Locale.getDefault(), "₹%.0f", curPaid));
+                    if (tvDisbursementBalance != null) tvDisbursementBalance.setText(String.format(Locale.getDefault(), "₹%.0f", curDisbursed));
+                    if (tvTotalRemaining != null) tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", curRemaining));
+                    if (tvInterestCollected != null) tvInterestCollected.setText(String.format(Locale.getDefault(), "₹%.0f", curProfit));
+
+                    if (entries.isEmpty()) {
                         if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
                     } else {
                         if (tvEmpty != null) tvEmpty.setVisibility(View.GONE);
                     }
 
-                    if (rvTable != null) {
-                        rvTable.setAdapter(new SlateAdapter(slateEntries));
-                    }
+                    if (rvTable != null) rvTable.setAdapter(new SlateAdapter(entries));
                 });
             }
         });
     }
 
-    static class SlateEntry {
-        int slNo;
-        String name;
-        double todaysDue;
-        double todaysCollection;
-        double totalPaid;
-        double remainingBalance;
+    public static class SlateEntry {
+        public int slNo;
+        public String name;
+        public double todaysDue;
+        public double todaysCollection;
+        public double totalPaid;
+        public double remainingBalance;
 
-        SlateEntry(int slNo, String name, double todaysDue, double todaysCollection, double totalPaid, double remainingBalance) {
+        public SlateEntry(int slNo, String name, double todaysDue, double todaysCollection, double totalPaid, double remainingBalance) {
             this.slNo = slNo;
             this.name = name;
             this.todaysDue = todaysDue;
@@ -334,13 +304,9 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
     static class SlateAdapter extends RecyclerView.Adapter<SlateAdapter.SlateVH> {
         private final List<SlateEntry> list;
+        SlateAdapter(List<SlateEntry> list) { this.list = list; }
 
-        SlateAdapter(List<SlateEntry> list) {
-            this.list = list;
-        }
-
-        @NonNull
-        @Override
+        @NonNull @Override
         public SlateVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_slate_ledger_row, parent, false);
             return new SlateVH(v);
@@ -349,7 +315,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull SlateVH holder, int position) {
             SlateEntry item = list.get(position);
-
             holder.tvSl.setText(String.valueOf(item.slNo));
             holder.tvName.setText(item.name);
             holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysDue));
@@ -357,21 +322,13 @@ public class PaymentHistoryActivity extends AppCompatActivity {
             holder.tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.totalPaid));
             holder.tvRem.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
 
-            if (position % 2 == 1) {
-                holder.itemView.setBackgroundColor(Color.parseColor("#141E33"));
-            } else {
-                holder.itemView.setBackgroundColor(Color.parseColor("#0F172A"));
-            }
+            holder.itemView.setBackgroundColor(position % 2 == 1 ? Color.parseColor("#141E33") : Color.parseColor("#0F172A"));
         }
 
-        @Override
-        public int getItemCount() {
-            return list.size();
-        }
+        @Override public int getItemCount() { return list.size(); }
 
         static class SlateVH extends RecyclerView.ViewHolder {
             TextView tvSl, tvName, tvDue, tvTodayColl, tvTotalPaid, tvRem;
-
             SlateVH(@NonNull View v) {
                 super(v);
                 tvSl = v.findViewById(R.id.tvRowSlNo);
