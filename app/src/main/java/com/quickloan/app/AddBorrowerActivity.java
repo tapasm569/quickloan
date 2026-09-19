@@ -132,7 +132,6 @@ public class AddBorrowerActivity extends AppCompatActivity {
 
             if (bitmap == null) return "";
 
-            // Scale down to prevent out of memory and heavy payloads
             int width = bitmap.getWidth();
             int height = bitmap.getHeight();
             float ratio = (float) width / (float) height;
@@ -153,7 +152,6 @@ public class AddBorrowerActivity extends AppCompatActivity {
             byte[] bytes = baos.toByteArray();
             return Base64.encodeToString(bytes, Base64.NO_WRAP);
         } catch (Exception e) {
-            Toast.makeText(this, "Failed to load image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             return "";
         }
     }
@@ -170,7 +168,7 @@ public class AddBorrowerActivity extends AppCompatActivity {
         String pan = etPan.getText().toString().trim();
 
         if (name.isEmpty() || phone.length() != 10 || password.isEmpty()) {
-            Toast.makeText(this, "Please enter full name, valid 10-digit mobile, and password", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please provide full name, 10-digit mobile, and password", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -182,9 +180,9 @@ public class AddBorrowerActivity extends AppCompatActivity {
         );
 
         btnSubmit.setEnabled(false);
-        btnSubmit.setText("CREATING PROFILE...");
+        btnSubmit.setText("CREATING & ACTIVATING...");
 
-        // Setting profile_completed = true and is_verified = 1 ensures borrower bypasses onboarding on first login
+        // Pre-approved flags: status=ACTIVE, is_verified=1, profile_completed=true, is_profile_updated=1
         String json = String.format(Locale.US,
                 "{" +
                         "\"name\":\"%s\"," +
@@ -200,6 +198,9 @@ public class AddBorrowerActivity extends AppCompatActivity {
                         "\"pan_no\":\"%s\"," +
                         "\"pan_image\":\"%s\"," +
                         "\"photo\":\"%s\"," +
+                        "\"status\":\"ACTIVE\"," +
+                        "\"is_verified\":1," +
+                        "\"is_approved\":true," +
                         "\"profile_completed\":true," +
                         "\"is_profile_updated\":1," +
                         "\"role\":\"customer\"" +
@@ -246,7 +247,7 @@ public class AddBorrowerActivity extends AppCompatActivity {
                     btnSubmit.setEnabled(true);
                     btnSubmit.setText("CREATE BORROWER PROFILE");
                     if (success) {
-                        Toast.makeText(AddBorrowerActivity.this, "Borrower profile created successfully! Customer can now login.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(AddBorrowerActivity.this, "Borrower activated! Customer can login directly.", Toast.LENGTH_LONG).show();
                         finish();
                     } else {
                         Toast.makeText(AddBorrowerActivity.this, "Error (" + response.code() + "): " + responseBody, Toast.LENGTH_LONG).show();
