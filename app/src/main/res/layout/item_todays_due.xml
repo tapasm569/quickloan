@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="6dp"
     android:layout_marginVertical="6dp"
-    app:cardBackgroundColor="@color/card_bg"
+    app:cardBackgroundColor="#1E293B"
     app:cardCornerRadius="14dp"
     app:cardElevation="2dp">
 
@@ -31,7 +31,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Borrower Name"
-                    android:textColor="@color/text_main"
+                    android:textColor="#FFFFFF"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -41,8 +41,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="+91 0000000000"
-                    android:textColor="@color/text_muted"
-                    android:textSize="13sp" />
+                    android:textColor="#94A3B8"
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -52,62 +52,96 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="DUE TODAY"
+                    android:textColor="#F43F5E"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:id="@+id/tvDueEmiAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="₹0 / day"
-                    android:textColor="@color/brand_rose"
+                    android:text="₹0"
+                    android:textColor="#F43F5E"
                     android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="10dp"
+            android:background="#334155" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="REMAINING BALANCE"
+                    android:textColor="#94A3B8"
+                    android:textSize="10sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvDueRemaining"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Rem: ₹0"
-                    android:textColor="@color/text_muted"
-                    android:textSize="11sp" />
+                    android:layout_marginTop="2dp"
+                    android:text="₹0"
+                    android:textColor="#F59E0B"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
-        </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCollectEmi"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="4dp"
-                android:layout_weight="1.2"
-                android:backgroundTint="@color/brand_emerald"
-                android:text="Receive EMI"
-                android:textSize="11sp"
-                app:cornerRadius="8dp" />
-
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/btnCallBorrower"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginHorizontal="3dp"
-                android:layout_weight="0.9"
-                android:backgroundTint="@color/brand_primary"
-                android:text="Call"
-                android:textSize="11sp"
-                app:cornerRadius="8dp" />
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="5dp"
+                android:backgroundTint="#2563EB"
+                android:minWidth="0dp"
+                android:paddingHorizontal="10dp"
+                android:text="📞 Call"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/btnWaBorrower"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="3dp"
-                android:layout_weight="0.9"
-                android:backgroundTint="#25D366"
-                android:text="WhatsApp"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="5dp"
+                android:backgroundTint="#10B981"
+                android:minWidth="0dp"
+                android:paddingHorizontal="10dp"
+                android:text="💬 WA"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnCollectEmi"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#0D9488"
+                android:minWidth="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="Collect"
+                android:textColor="#FFFFFF"
                 android:textSize="11sp"
-                app:cornerRadius="8dp" />
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
