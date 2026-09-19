@@ -145,7 +145,6 @@ public class TodaysDueActivity extends AppCompatActivity {
                     double totalAmount = parseDoubleSafe(l.get("amount"));
                     double paidAmount = parseDoubleSafe(l.get("paid_amount"));
 
-                    // Calculates accumulated due: (Days * EMI) - Paid
                     double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, paidAmount);
 
                     if (accumulatedDue > 0) {
