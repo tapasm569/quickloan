@@ -30,7 +30,7 @@
                     android:id="@+id/tvClientName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Loan Request: ₹10,000"
+                    android:text="Customer Name"
                     android:textColor="#FFFFFF"
                     android:textSize="15sp"
                     android:textStyle="bold" />
@@ -51,11 +51,11 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/edittext_bg"
                 android:backgroundTint="#1E293B"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
-                android:text="PENDING"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="5dp"
+                android:text="Due: ₹0"
                 android:textColor="#F59E0B"
-                android:textSize="10sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -70,8 +70,8 @@
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
-                android:backgroundTint="#10B981"
-                android:text="Review &amp; Approve"
+                android:backgroundTint="#0284C7"
+                android:text="View Profile"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -81,7 +81,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
-                android:backgroundTint="#0284C7"
+                android:backgroundTint="#10B981"
                 android:text="Call"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp" />
