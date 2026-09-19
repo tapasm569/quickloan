@@ -1,10 +1,12 @@
 package com.quickloan.app;
 
 import android.app.Dialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
@@ -71,9 +73,28 @@ public class ApproveLoanActivity extends AppCompatActivity {
         return (int) (dp * getResources().getDisplayMetrics().density);
     }
 
+    private double parseDoubleSafe(Object obj, double defaultVal) {
+        if (obj == null) return defaultVal;
+        try {
+            return Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return defaultVal;
+        }
+    }
+
+    private int parseIntSafe(Object obj, int defaultVal) {
+        if (obj == null) return defaultVal;
+        try {
+            return (int) Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return defaultVal;
+        }
+    }
+
     private void loadPendingLoans() {
+        // Query loans where disbursement_status is PENDING or status is PENDING
         Request req = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.PENDING&order=id.desc")
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?or=(disbursement_status.eq.PENDING,status.eq.PENDING)&order=id.desc")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -82,12 +103,24 @@ public class ApproveLoanActivity extends AppCompatActivity {
         client.newCall(req).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
-                    if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
+                    if (tvEmpty != null) {
+                        tvEmpty.setText("Network error loading loans: " + e.getMessage());
+                        tvEmpty.setVisibility(View.VISIBLE);
+                    }
                 });
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful() || response.body() == null) return;
+                if (!response.isSuccessful() || response.body() == null) {
+                    runOnUiThread(() -> {
+                        if (tvEmpty != null) {
+                            tvEmpty.setText("Failed to load records from Supabase");
+                            tvEmpty.setVisibility(View.VISIBLE);
+                        }
+                    });
+                    return;
+                }
+
                 String body = response.body().string();
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
                 List<Map<String, Object>> loans = gson.fromJson(body, type);
@@ -96,7 +129,10 @@ public class ApproveLoanActivity extends AppCompatActivity {
                 List<Map<String, Object>> finalLoans = loans;
                 runOnUiThread(() -> {
                     if (finalLoans.isEmpty()) {
-                        if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
+                        if (tvEmpty != null) {
+                            tvEmpty.setText("No pending loan applications found.");
+                            tvEmpty.setVisibility(View.VISIBLE);
+                        }
                     } else {
                         if (tvEmpty != null) tvEmpty.setVisibility(View.GONE);
                     }
@@ -109,11 +145,16 @@ public class ApproveLoanActivity extends AppCompatActivity {
     }
 
     private void openEditAndApproveDialog(Map<String, Object> loan) {
-        int loanId = (int) Double.parseDouble(String.valueOf(loan.get("id")));
+        int loanId = parseIntSafe(loan.get("id"), 0);
         String phone = String.valueOf(loan.get("customer_phone"));
-        double initialPrincipal = loan.get("principal") != null ? Double.parseDouble(String.valueOf(loan.get("principal"))) : Double.parseDouble(String.valueOf(loan.get("amount")));
-        double initialRate = loan.get("interest_rate") != null ? Double.parseDouble(String.valueOf(loan.get("interest_rate"))) : 2.0;
-        int initialTenure = loan.get("tenure") != null ? (int) Double.parseDouble(String.valueOf(loan.get("tenure"))) : 30;
+        String purpose = loan.get("purpose") != null ? String.valueOf(loan.get("purpose")) : "Personal";
+        
+        double initialPrincipal = loan.get("principal") != null ? 
+                parseDoubleSafe(loan.get("principal"), 10000) : 
+                parseDoubleSafe(loan.get("amount"), 10000);
+        
+        double initialRate = parseDoubleSafe(loan.get("interest_rate"), 2.0);
+        int initialTenure = parseIntSafe(loan.get("tenure"), 30);
 
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -130,37 +171,31 @@ public class ApproveLoanActivity extends AppCompatActivity {
         bg.setCornerRadius(dpToPx(16));
         container.setBackground(bg);
 
-        // Title
+        // Header
         TextView tvTitle = new TextView(this);
-        tvTitle.setText("Review & Edit Loan Terms");
+        tvTitle.setText("Review & Approve Loan");
         tvTitle.setTextColor(Color.WHITE);
         tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         tvTitle.setTypeface(null, Typeface.BOLD);
         container.addView(tvTitle);
 
-        // Customer Info
         TextView tvSub = new TextView(this);
-        tvSub.setText("Applicant: +91 " + phone);
+        tvSub.setText("Applicant: +91 " + phone + " (" + purpose + ")");
         tvSub.setTextColor(Color.parseColor("#94A3B8"));
         tvSub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         tvSub.setPadding(0, dpToPx(2), 0, dpToPx(12));
         container.addView(tvSub);
 
-        // Principal Input
-        TextView lblPrincipal = createLabel("LOAN AMOUNT / PRINCIPAL (₹)");
-        container.addView(lblPrincipal);
+        // Inputs
+        container.addView(createLabel("LOAN PRINCIPAL (₹)"));
         EditText etPrincipal = createInput(String.valueOf((int) initialPrincipal), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         container.addView(etPrincipal);
 
-        // Interest Rate Input
-        TextView lblRate = createLabel("INTEREST RATE (% PER MONTH)");
-        container.addView(lblRate);
+        container.addView(createLabel("INTEREST RATE (% PER MONTH)"));
         EditText etRate = createInput(String.valueOf(initialRate), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         container.addView(etRate);
 
-        // Tenure Input
-        TextView lblTenure = createLabel("TENURE (DAYS)");
-        container.addView(lblTenure);
+        container.addView(createLabel("LOAN TENURE (DAYS)"));
         EditText etTenure = createInput(String.valueOf(initialTenure), InputType.TYPE_CLASS_NUMBER);
         container.addView(etTenure);
 
@@ -213,7 +248,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
                     finalEmi[0] = finalPayable[0] / t;
 
                     tvInterest.setText(String.format(Locale.getDefault(), "Total Interest: ₹%.0f", interest));
-                    tvPayable.setText(String.format(Locale.getDefault(), "Total Repayment: ₹%.0f", finalPayable[0]));
+                    tvPayable.setText(String.format(Locale.getDefault(), "Total Payable: ₹%.0f", finalPayable[0]));
                     tvDailyEmi.setText(String.format(Locale.getDefault(), "Daily EMI: ₹%.0f / day", finalEmi[0]));
                 }
             } catch (Exception ignored) {}
@@ -231,19 +266,22 @@ public class ApproveLoanActivity extends AppCompatActivity {
         etRate.addTextChangedListener(watcher);
         etTenure.addTextChangedListener(watcher);
 
-        // Buttons
+        // Buttons: Reject & Approve
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         btnRow.setGravity(Gravity.END);
 
-        Button btnCancel = new Button(this);
-        btnCancel.setText("Cancel");
-        btnCancel.setTextColor(Color.parseColor("#CBD5E1"));
-        btnCancel.setBackgroundColor(Color.parseColor("#334155"));
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        Button btnReject = new Button(this);
+        btnReject.setText("Reject");
+        btnReject.setTextColor(Color.WHITE);
+        btnReject.setBackgroundColor(Color.parseColor("#E11D48"));
+        btnReject.setOnClickListener(v -> {
+            dialog.dismiss();
+            executeRejectLoan(loanId);
+        });
 
         Button btnApprove = new Button(this);
-        btnApprove.setText("Confirm & Approve");
+        btnApprove.setText("Approve Loan");
         btnApprove.setTextColor(Color.WHITE);
         btnApprove.setTypeface(null, Typeface.BOLD);
         btnApprove.setBackgroundColor(Color.parseColor("#10B981"));
@@ -261,11 +299,11 @@ public class ApproveLoanActivity extends AppCompatActivity {
                 dialog.dismiss();
                 executeApproveLoan(loanId, p, finalPayable[0], r, t, finalEmi[0]);
             } catch (Exception e) {
-                Toast.makeText(this, "Please verify all numerical values", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please verify all numerical fields", Toast.LENGTH_SHORT).show();
             }
         });
 
-        btnRow.addView(btnCancel);
+        btnRow.addView(btnReject);
         btnRow.addView(btnApprove);
         container.addView(btnRow);
 
@@ -311,9 +349,10 @@ public class ApproveLoanActivity extends AppCompatActivity {
     }
 
     private void executeApproveLoan(int loanId, double principal, double amount, double rate, int tenure, double dailyEmi) {
+        String today = DateHelper.getTodayDate();
         String json = String.format(Locale.US,
-                "{\"principal\":%.2f,\"amount\":%.2f,\"interest_rate\":%.2f,\"tenure\":%d,\"daily_emi\":%.2f,\"disbursement_status\":\"DISBURSED\",\"status\":\"APPROVED\"}",
-                principal, amount, rate, tenure, dailyEmi
+                "{\"principal\":%.2f,\"amount\":%.2f,\"interest_rate\":%.2f,\"tenure\":%d,\"daily_emi\":%.2f,\"disbursement_status\":\"DISBURSED\",\"status\":\"APPROVED\",\"date\":\"%s\"}",
+                principal, amount, rate, tenure, dailyEmi, today
         );
 
         RequestBody body = RequestBody.create(json, MediaType.get("application/json; charset=utf-8"));
@@ -326,12 +365,41 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
         client.newCall(req).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Network error approving loan", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Network error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ApproveLoanActivity.this, "Loan approved successfully!", Toast.LENGTH_SHORT).show();
+                        loadPendingLoans();
+                    });
+                } else {
+                    String err = response.body() != null ? response.body().string() : "Error " + response.code();
+                    runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Approval failed: " + err, Toast.LENGTH_LONG).show());
+                }
+            }
+        });
+    }
+
+    private void executeRejectLoan(int loanId) {
+        String json = "{\"disbursement_status\":\"REJECTED\",\"status\":\"REJECTED\"}";
+        RequestBody body = RequestBody.create(json, MediaType.get("application/json; charset=utf-8"));
+        Request req = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?id=eq." + loanId)
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .patch(body)
+                .build();
+
+        client.newCall(req).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(ApproveLoanActivity.this, "Network error rejecting loan", Toast.LENGTH_SHORT).show());
             }
 
             @Override public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ApproveLoanActivity.this, "Loan approved with updated terms!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ApproveLoanActivity.this, "Loan application rejected", Toast.LENGTH_SHORT).show();
                     loadPendingLoans();
                 });
             }
@@ -356,18 +424,25 @@ public class ApproveLoanActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull PendingVH holder, int position) {
             Map<String, Object> l = list.get(position);
             String phone = String.valueOf(l.get("customer_phone"));
-            double amt = l.get("principal") != null ? Double.parseDouble(String.valueOf(l.get("principal"))) : Double.parseDouble(String.valueOf(l.get("amount")));
+            double amt = l.get("principal") != null ? 
+                    parseDoubleSafe(l.get("principal"), 0) : 
+                    parseDoubleSafe(l.get("amount"), 0);
 
             holder.tvName.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
             holder.tvPhone.setText("+91 " + phone);
-            holder.tvDue.setText("PENDING APPROVAL");
+            holder.tvDue.setText("PENDING");
 
             holder.btnAction.setText("Review & Approve");
             holder.btnAction.setBackgroundColor(Color.parseColor("#10B981"));
             holder.btnAction.setOnClickListener(v -> openEditAndApproveDialog(l));
 
             if (holder.btnCall != null) {
-                holder.btnCall.setVisibility(View.GONE);
+                holder.btnCall.setVisibility(View.VISIBLE);
+                holder.btnCall.setOnClickListener(v -> {
+                    Intent callIntent = new Intent(Intent.ACTION_DIAL);
+                    callIntent.setData(Uri.parse("tel:" + phone));
+                    startActivity(callIntent);
+                });
             }
         }
 
