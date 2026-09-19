@@ -39,38 +39,45 @@ public class AccountDashboardFragment extends Fragment {
         tvInterestBadge = view.findViewById(R.id.tvAccountInterestBadge);
         updateInterestBadge();
 
-        // 1. Set Monthly Interest Rate Card
+        // 1. Add Borrowers Card (NEW)
+        view.findViewById(R.id.cardAddBorrower).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                startActivity(new Intent(getActivity(), AddBorrowerActivity.class));
+            }
+        });
+
+        // 2. Set Monthly Interest Rate Card
         view.findViewById(R.id.cardSetInterestRate).setOnClickListener(v -> showSetInterestRateDialog());
 
-        // 2. Approve Pending Loans Card (Restored)
+        // 3. Approve Pending Loans Card
         view.findViewById(R.id.cardApproveLoans).setOnClickListener(v -> {
             if (getActivity() != null) {
                 startActivity(new Intent(getActivity(), ApproveLoanActivity.class));
             }
         });
 
-        // 3. Slate Ledger Book Card
+        // 4. Slate Ledger Book Card
         view.findViewById(R.id.cardAccountLedgerBook).setOnClickListener(v -> {
             if (getActivity() != null) {
                 startActivity(new Intent(getActivity(), PaymentHistoryActivity.class));
             }
         });
 
-        // 4. Today's Due & Pending Card
+        // 5. Today's Due & Pending Card
         view.findViewById(R.id.cardAccountTodaysDue).setOnClickListener(v -> {
             if (getActivity() != null) {
                 startActivity(new Intent(getActivity(), TodaysDueActivity.class));
             }
         });
 
-        // 5. Today's Payment Card
+        // 6. Today's Payment Card
         view.findViewById(R.id.cardAccountTodaysPayment).setOnClickListener(v -> {
             if (getActivity() != null) {
                 startActivity(new Intent(getActivity(), TodaysPaymentActivity.class));
             }
         });
 
-        // 6. Master Client Directory Card
+        // 7. Master Client Directory Card
         view.findViewById(R.id.cardAccountMasterDirectory).setOnClickListener(v -> {
             if (getActivity() != null) {
                 startActivity(new Intent(getActivity(), MasterActivity.class));
