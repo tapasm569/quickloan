@@ -209,7 +209,6 @@ public class CustomerProfileActivity extends AppCompatActivity {
     }
 
     private void showModernDeleteDialog() {
-        // Generate random 6-digit verification code
         int code = 100000 + new Random().nextInt(900000);
         activeSecretCode = String.valueOf(code);
 
@@ -257,7 +256,6 @@ public class CustomerProfileActivity extends AppCompatActivity {
     }
 
     private void executeDeleteCustomer() {
-        // Delete Customer Loans
         Request delLoans = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + customerPhone)
                 .addHeader("apikey", API_KEY)
@@ -270,7 +268,6 @@ public class CustomerProfileActivity extends AppCompatActivity {
             @Override public void onResponse(Call call, Response response) {}
         });
 
-        // Delete Customer Profile
         Request delCustomer = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + customerPhone)
                 .addHeader("apikey", API_KEY)
