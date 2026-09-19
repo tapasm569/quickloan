@@ -168,7 +168,7 @@ public class AddBorrowerActivity extends AppCompatActivity {
         String pan = etPan.getText().toString().trim();
 
         if (name.isEmpty() || phone.length() != 10 || password.isEmpty()) {
-            Toast.makeText(this, "Please provide full name, 10-digit mobile, and password", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please enter name, 10-digit mobile, and password", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -182,7 +182,7 @@ public class AddBorrowerActivity extends AppCompatActivity {
         btnSubmit.setEnabled(false);
         btnSubmit.setText("CREATING & ACTIVATING...");
 
-        // Pre-approved flags: status=ACTIVE, is_verified=1, profile_completed=true, is_profile_updated=1
+        // All booleans sent as true/false rather than 1/0
         String json = String.format(Locale.US,
                 "{" +
                         "\"name\":\"%s\"," +
@@ -199,10 +199,10 @@ public class AddBorrowerActivity extends AppCompatActivity {
                         "\"pan_image\":\"%s\"," +
                         "\"photo\":\"%s\"," +
                         "\"status\":\"ACTIVE\"," +
-                        "\"is_verified\":1," +
+                        "\"is_verified\":true," +
                         "\"is_approved\":true," +
                         "\"profile_completed\":true," +
-                        "\"is_profile_updated\":1," +
+                        "\"is_profile_updated\":true," +
                         "\"role\":\"customer\"" +
                         "}",
                 escapeJson(name),
@@ -247,7 +247,7 @@ public class AddBorrowerActivity extends AppCompatActivity {
                     btnSubmit.setEnabled(true);
                     btnSubmit.setText("CREATE BORROWER PROFILE");
                     if (success) {
-                        Toast.makeText(AddBorrowerActivity.this, "Borrower activated! Customer can login directly.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(AddBorrowerActivity.this, "Borrower activated! Customer can now login directly.", Toast.LENGTH_LONG).show();
                         finish();
                     } else {
                         Toast.makeText(AddBorrowerActivity.this, "Error (" + response.code() + "): " + responseBody, Toast.LENGTH_LONG).show();
@@ -267,4 +267,5 @@ public class AddBorrowerActivity extends AppCompatActivity {
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
     }
-}
+                        }
+                        
