@@ -18,9 +18,6 @@ import java.util.Locale;
 
 public class PdfHelper {
 
-    /**
-     * Checks if the PDF exists in device storage and directly opens it.
-     */
     public static void openPdfFromStorage(Context context, File pdfFile) {
         if (pdfFile == null || !pdfFile.exists() || pdfFile.length() == 0) {
             Toast.makeText(context, "PDF file not found in storage. Please generate it first.", Toast.LENGTH_SHORT).show();
@@ -39,9 +36,6 @@ public class PdfHelper {
         }
     }
 
-    /**
-     * Sends the PDF file directly to WhatsApp.
-     */
     public static void sendPdfToWhatsApp(Context context, File pdfFile) {
         if (pdfFile == null || !pdfFile.exists() || pdfFile.length() == 0) {
             Toast.makeText(context, "PDF not found. Please regenerate.", Toast.LENGTH_SHORT).show();
@@ -57,7 +51,6 @@ public class PdfHelper {
             shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             context.startActivity(shareIntent);
         } catch (Exception e) {
-            // Fallback to standard app chooser if direct WhatsApp package fails
             try {
                 Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".provider", pdfFile);
                 Intent fallback = new Intent(Intent.ACTION_SEND);
@@ -71,24 +64,20 @@ public class PdfHelper {
         }
     }
 
-    /**
-     * Generates Lender Slate Ledger PDF (Multi-column with metrics).
-     */
     public static File generateLenderPdf(Context context, String date, double due, double paid, double disbursed, double remaining, double profit, List<PaymentHistoryActivity.SlateEntry> list) {
         PdfDocument document = new PdfDocument();
         Paint paint = new Paint();
-        int pageWidth = 595; // A4 standard width
-        int pageHeight = 842; // A4 standard height
+        int pageWidth = 595;
+        int pageHeight = 842;
+        int pageNum = 1;
 
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create();
         PdfDocument.Page page = document.startPage(pageInfo);
         Canvas canvas = page.getCanvas();
 
-        // Header Background
         paint.setColor(Color.parseColor("#1E293B"));
         canvas.drawRect(0, 0, pageWidth, 70, paint);
 
-        // Header Titles
         paint.setColor(Color.WHITE);
         paint.setTextSize(18);
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
@@ -96,9 +85,8 @@ public class PdfHelper {
 
         paint.setTextSize(10);
         paint.setColor(Color.parseColor("#94A3B8"));
-        canvas.drawText("Generated on: " + date, 20, 56, paint);
+        canvas.drawText("Generated on: " + date + "  |  Page " + pageNum, 20, 56, paint);
 
-        // Summary Metric Box
         paint.setColor(Color.parseColor("#F1F5F9"));
         canvas.drawRoundRect(20, 85, pageWidth - 20, 145, 8, 8, paint);
 
@@ -108,27 +96,21 @@ public class PdfHelper {
         canvas.drawText(String.format(Locale.getDefault(), "TODAY DUE: Rs.%.0f   |   TODAY PAID: Rs.%.0f   |   DISBURSED: Rs.%.0f", due, paid, disbursed), 30, 110, paint);
         canvas.drawText(String.format(Locale.getDefault(), "TOTAL REMAINING: Rs.%.0f   |   PROFIT EARNED: Rs.%.0f", remaining, profit), 30, 130, paint);
 
-        // Table Header
-        paint.setColor(Color.parseColor("#1E293B"));
-        canvas.drawRect(20, 160, pageWidth - 20, 185, paint);
+        int y = drawLenderTableHeader(canvas, paint, pageWidth, 160);
 
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(9);
-        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        canvas.drawText("SL", 25, 176, paint);
-        canvas.drawText("BORROWER NAME", 55, 176, paint);
-        canvas.drawText("DUE TODAY", 230, 176, paint);
-        canvas.drawText("TODAY COLL", 320, 176, paint);
-        canvas.drawText("TOTAL PAID", 410, 176, paint);
-        canvas.drawText("REMAINING", 500, 176, paint);
-
-        // Rows
-        int y = 205;
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
         for (int i = 0; i < list.size(); i++) {
+            if (y > pageHeight - 50) {
+                document.finishPage(page);
+                pageNum++;
+                pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create();
+                page = document.startPage(pageInfo);
+                canvas = page.getCanvas();
+                y = drawLenderTableHeader(canvas, paint, pageWidth, 25);
+            }
+
             PaymentHistoryActivity.SlateEntry item = list.get(i);
 
-            // Row zebra background
             if (i % 2 == 1) {
                 paint.setColor(Color.parseColor("#F8FAFC"));
                 canvas.drawRect(20, y - 14, pageWidth - 20, y + 6, paint);
@@ -137,7 +119,7 @@ public class PdfHelper {
             paint.setColor(Color.parseColor("#0F172A"));
             paint.setTextSize(8);
             canvas.drawText(String.valueOf(item.slNo), 25, y, paint);
-            
+
             String n = item.name.length() > 22 ? item.name.substring(0, 22) + ".." : item.name;
             canvas.drawText(n, 55, y, paint);
             canvas.drawText(String.format(Locale.getDefault(), "Rs.%.0f", item.todaysDue), 230, y, paint);
@@ -146,7 +128,6 @@ public class PdfHelper {
             canvas.drawText(String.format(Locale.getDefault(), "Rs.%.0f", item.remainingBalance), 500, y, paint);
 
             y += 20;
-            if (y > pageHeight - 40) break; // Avoid overflow on single page
         }
 
         document.finishPage(page);
@@ -167,24 +148,37 @@ public class PdfHelper {
         }
     }
 
-    /**
-     * Generates Customer Statement PDF.
-     */
+    private static int drawLenderTableHeader(Canvas canvas, Paint paint, int pageWidth, int startY) {
+        paint.setColor(Color.parseColor("#1E293B"));
+        canvas.drawRect(20, startY, pageWidth - 20, startY + 25, paint);
+
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(9);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        canvas.drawText("SL", 25, startY + 16, paint);
+        canvas.drawText("BORROWER NAME", 55, startY + 16, paint);
+        canvas.drawText("DUE TODAY", 230, startY + 16, paint);
+        canvas.drawText("TODAY COLL", 320, startY + 16, paint);
+        canvas.drawText("TOTAL PAID", 410, startY + 16, paint);
+        canvas.drawText("REMAINING", 500, startY + 16, paint);
+
+        return startY + 45;
+    }
+
     public static File generateCustomerPdf(Context context, String customerPhone, double approved, double paid, double remaining, List<CustomerLedgerActivity.CustLedgerEntry> list) {
         PdfDocument document = new PdfDocument();
         Paint paint = new Paint();
         int pageWidth = 595;
         int pageHeight = 842;
+        int pageNum = 1;
 
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create();
         PdfDocument.Page page = document.startPage(pageInfo);
         Canvas canvas = page.getCanvas();
 
-        // Header Background
         paint.setColor(Color.parseColor("#1E293B"));
         canvas.drawRect(0, 0, pageWidth, 70, paint);
 
-        // Header Text
         paint.setColor(Color.WHITE);
         paint.setTextSize(18);
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
@@ -192,9 +186,8 @@ public class PdfHelper {
 
         paint.setTextSize(10);
         paint.setColor(Color.parseColor("#94A3B8"));
-        canvas.drawText("Borrower Mobile: +91 " + customerPhone + "  |  Date: " + DateHelper.getTodayDate(), 20, 56, paint);
+        canvas.drawText("Borrower Mobile: +91 " + customerPhone + "  |  Page " + pageNum, 20, 56, paint);
 
-        // Metrics Summary
         paint.setColor(Color.parseColor("#F1F5F9"));
         canvas.drawRoundRect(20, 85, pageWidth - 20, 135, 8, 8, paint);
 
@@ -203,22 +196,19 @@ public class PdfHelper {
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         canvas.drawText(String.format(Locale.getDefault(), "APPROVED LOAN: Rs.%.0f    |    TOTAL PAID: Rs.%.0f    |    REMAINING: Rs.%.0f", approved, paid, remaining), 30, 115, paint);
 
-        // Table Header
-        paint.setColor(Color.parseColor("#1E293B"));
-        canvas.drawRect(20, 150, pageWidth - 20, 175, paint);
+        int y = drawCustomerTableHeader(canvas, paint, pageWidth, 150);
 
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(9);
-        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        canvas.drawText("SL NO", 35, 166, paint);
-        canvas.drawText("PAYMENT DATE", 140, 166, paint);
-        canvas.drawText("AMOUNT PAID", 290, 166, paint);
-        canvas.drawText("REMAINING BALANCE", 430, 166, paint);
-
-        // Table Rows
-        int y = 195;
         paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
         for (int i = 0; i < list.size(); i++) {
+            if (y > pageHeight - 50) {
+                document.finishPage(page);
+                pageNum++;
+                pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNum).create();
+                page = document.startPage(pageInfo);
+                canvas = page.getCanvas();
+                y = drawCustomerTableHeader(canvas, paint, pageWidth, 25);
+            }
+
             CustomerLedgerActivity.CustLedgerEntry item = list.get(i);
 
             if (i % 2 == 1) {
@@ -228,13 +218,12 @@ public class PdfHelper {
 
             paint.setColor(Color.parseColor("#0F172A"));
             paint.setTextSize(9);
-            canvas.drawText(String.valueOf(item.slNo), 40, y, paint);
+            canvas.drawText(String.valueOf(item.slNo), 35, y, paint);
             canvas.drawText(item.date, 140, y, paint);
             canvas.drawText(String.format(Locale.getDefault(), "Rs.%.0f", item.paid), 290, y, paint);
             canvas.drawText(String.format(Locale.getDefault(), "Rs.%.0f", item.remainingBalance), 430, y, paint);
 
             y += 22;
-            if (y > pageHeight - 40) break;
         }
 
         document.finishPage(page);
@@ -253,5 +242,20 @@ public class PdfHelper {
             document.close();
             return null;
         }
+    }
+
+    private static int drawCustomerTableHeader(Canvas canvas, Paint paint, int pageWidth, int startY) {
+        paint.setColor(Color.parseColor("#1E293B"));
+        canvas.drawRect(20, startY, pageWidth - 20, startY + 25, paint);
+
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(9);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        canvas.drawText("SL NO", 35, startY + 16, paint);
+        canvas.drawText("PAYMENT DATE", 140, startY + 16, paint);
+        canvas.drawText("AMOUNT PAID", 290, startY + 16, paint);
+        canvas.drawText("REMAINING BALANCE", 430, startY + 16, paint);
+
+        return startY + 45;
     }
 }
