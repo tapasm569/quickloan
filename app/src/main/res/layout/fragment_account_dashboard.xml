@@ -58,7 +58,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Loan approvals, rates &amp; registers"
+                        android:text="Loan approvals, borrowers &amp; registers"
                         android:textColor="#94A3B8"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -69,12 +69,86 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:text="LOAN MANAGEMENT &amp; RATES"
+            android:text="CUSTOMER &amp; BORROWER ONBOARDING"
             android:textColor="#38BDF8"
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- 1. SET MONTHLY INTEREST RATE -->
+        <!-- 1. ADD BORROWERS CARD -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardAddBorrower"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/card_bg"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/edittext_bg"
+                    android:backgroundTint="#2563EB"
+                    android:gravity="center"
+                    android:text="➕"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Add Borrowers"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Create profile, upload KYC &amp; set password"
+                        android:textColor="#38BDF8"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="#94A3B8"
+                    android:textSize="18sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="8dp"
+            android:text="LOAN MANAGEMENT &amp; RATES"
+            android:textColor="#94A3B8"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <!-- 2. SET MONTHLY INTEREST RATE CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardSetInterestRate"
             android:layout_width="match_parent"
@@ -139,7 +213,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 2. APPROVE PENDING LOANS (RESTORED) -->
+        <!-- 3. APPROVE PENDING LOANS CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardApproveLoans"
             android:layout_width="match_parent"
@@ -213,7 +287,7 @@
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- 3. SLATE LEDGER BOOK -->
+        <!-- 4. SLATE LEDGER BOOK CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountLedgerBook"
             android:layout_width="match_parent"
@@ -275,7 +349,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 4. TODAY'S DUE & PENDING -->
+        <!-- 5. TODAY'S DUE & PENDING CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountTodaysDue"
             android:layout_width="match_parent"
@@ -337,7 +411,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 5. TODAY'S PAYMENT -->
+        <!-- 6. TODAY'S PAYMENT CARD -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountTodaysPayment"
             android:layout_width="match_parent"
@@ -399,67 +473,6 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 6. MASTER CLIENT DIRECTORY -->
+        <!-- 7. MASTER CLIENT DIRECTORY CARD -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/cardAccountMasterDirectory"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="@color/card_bg"
-            app:cardCornerRadius="14dp"
-            app:cardElevation="2dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@drawable/edittext_bg"
-                    android:backgroundTint="#1E3A8A"
-                    android:gravity="center"
-                    android:text="👥"
-                    android:textSize="18sp" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Master Client Directory"
-                        android:textColor="#FFFFFF"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Customer profiles, call buttons &amp; loan status"
-                        android:textColor="#94A3B8"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="→"
-                    android:textColor="#94A3B8"
-                    android:textSize="16sp" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
-    </LinearLayout>
-</ScrollView>
+            android:id="@+id/cardAccountMasterDirec
