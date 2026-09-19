@@ -3,55 +3,66 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0F172A"
+    android:background="#0B0F19"
     android:orientation="vertical">
 
-    <!-- Top App Bar -->
+    <!-- Top Header Bar with Back Button -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="#1E293B"
+        android:layout_height="56dp"
+        android:background="#111827"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
+        android:paddingHorizontal="14dp">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/btnBackMaster"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="←"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:text="Master Client Directory"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Master Client Directory"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvTotalClientCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Loading registered borrowers..."
-                android:textColor="#94A3B8"
-                android:textSize="11sp" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tvMasterClientCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_bg"
+            android:backgroundTint="#1E293B"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="0 Borrowers"
+            android:textColor="#38BDF8"
+            android:textSize="11sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Search / Filter Bar -->
+    <!-- Search Input Bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingHorizontal="14dp"
-        android:paddingTop="12dp">
+        android:paddingTop="12dp"
+        android:paddingBottom="8dp">
 
         <EditText
-            android:id="@+id/etSearchMaster"
+            android:id="@+id/etMasterSearch"
             android:layout_width="match_parent"
-            android:layout_height="46dp"
+            android:layout_height="48dp"
             android:background="@drawable/edittext_bg"
-            android:hint="🔍 Search by name or phone..."
+            android:hint="Search by name or mobile number"
             android:inputType="text"
             android:paddingHorizontal="14dp"
             android:textColor="#FFFFFF"
@@ -59,23 +70,25 @@
             android:textSize="13sp" />
     </LinearLayout>
 
+    <!-- Empty State View -->
     <TextView
         android:id="@+id/tvEmptyMaster"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="30dp"
-        android:text="No registered clients found"
+        android:text="No borrowers found"
         android:textColor="#64748B"
+        android:textSize="14sp"
         android:visibility="gone" />
 
+    <!-- RecyclerView for Client Cards -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMasterCustomers"
+        android:id="@+id/rvMasterClients"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:paddingHorizontal="8dp"
-        android:paddingTop="8dp"
         android:paddingBottom="16dp" />
 
 </LinearLayout>
