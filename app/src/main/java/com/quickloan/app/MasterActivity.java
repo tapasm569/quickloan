@@ -11,9 +11,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -34,38 +32,88 @@ public class MasterActivity extends AppCompatActivity {
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
 
+    private EditText etSearch;
     private RecyclerView rv;
     private TextView tvCount, tvEmpty;
-    private EditText etSearch;
 
-    private List<Map<String, Object>> clientList = new ArrayList<>();
-    private final Map<String, Double> phoneDueMap = new HashMap<>();
+    private List<Map<String, Object>> allCustomers = new ArrayList<>();
+    private List<Map<String, Object>> filteredCustomers = new ArrayList<>();
+    private Map<String, Double> phoneToDueMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_master);
 
-        tvCount = findViewById(R.id.tvTotalClientCount);
+        etSearch = findViewById(R.id.etMasterSearch);
+        tvCount = findViewById(R.id.tvMasterClientCount);
         tvEmpty = findViewById(R.id.tvEmptyMaster);
-        etSearch = findViewById(R.id.etSearchMaster);
-        rv = findViewById(R.id.rvMasterCustomers);
+        rv = findViewById(R.id.rvMasterClients);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        loadDueBalancesAndClients();
+        View btnBack = findViewById(R.id.btnBackMaster);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
 
+        setupSearchFilter();
+        loadActiveLoansSummary();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadActiveLoansSummary();
+    }
+
+    private double parseDoubleSafe(Object obj) {
+        if (obj == null) return 0.0;
+        try {
+            return Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    private void setupSearchFilter() {
+        if (etSearch == null) return;
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterClients(s.toString().toLowerCase(Locale.getDefault()).trim());
+                filterList(s.toString().trim().toLowerCase());
             }
             @Override public void afterTextChanged(Editable s) {}
         });
     }
 
-    private void loadDueBalancesAndClients() {
+    private void filterList(String query) {
+        filteredCustomers.clear();
+        if (query.isEmpty()) {
+            filteredCustomers.addAll(allCustomers);
+        } else {
+            for (Map<String, Object> c : allCustomers) {
+                String name = c.get("name") != null ? String.valueOf(c.get("name")).toLowerCase() : "";
+                String phone = c.get("phone") != null ? String.valueOf(c.get("phone")) : "";
+                if (name.contains(query) || phone.contains(query)) {
+                    filteredCustomers.add(c);
+                }
+            }
+        }
+
+        if (tvCount != null) {
+            tvCount.setText(filteredCustomers.size() + " Borrowers Found");
+        }
+        if (tvEmpty != null) {
+            tvEmpty.setVisibility(filteredCustomers.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+        if (rv != null && rv.getAdapter() != null) {
+            rv.getAdapter().notifyDataSetChanged();
+        }
+    }
+
+    private void loadActiveLoansSummary() {
         Request loanReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?is_paid=eq.0")
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.DISBURSED&is_paid=eq.0")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -73,231 +121,120 @@ public class MasterActivity extends AppCompatActivity {
 
         client.newCall(loanReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                fetchCustomers();
+                loadCustomers();
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
+                phoneToDueMap.clear();
                 if (response.isSuccessful() && response.body() != null) {
                     Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
                     List<Map<String, Object>> loans = gson.fromJson(response.body().string(), type);
-                    phoneDueMap.clear();
                     if (loans != null) {
                         for (Map<String, Object> l : loans) {
-                            String phone = String.valueOf(l.get("phone"));
-                            double total = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
-                            double paid = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
-                            double currentDue = total - paid;
-                            phoneDueMap.put(phone, phoneDueMap.getOrDefault(phone, 0.0) + currentDue);
+                            String phone = String.valueOf(l.get("customer_phone"));
+                            double total = parseDoubleSafe(l.get("amount"));
+                            double paid = parseDoubleSafe(l.get("paid_amount"));
+                            double rem = Math.max(0.0, total - paid);
+                            phoneToDueMap.put(phone, phoneToDueMap.getOrDefault(phone, 0.0) + rem);
                         }
                     }
                 }
-                fetchCustomers();
+                loadCustomers();
             }
         });
     }
 
-    private void fetchCustomers() {
-        Request custReq = new Request.Builder()
+    private void loadCustomers() {
+        Request req = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?order=id.desc")
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
                 .build();
 
-        client.newCall(custReq).enqueue(new Callback() {
+        client.newCall(req).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
+                runOnUiThread(() -> {
+                    if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
+                });
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) return;
-                String body = response.body() != null ? response.body().string() : "";
+                if (!response.isSuccessful() || response.body() == null) return;
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                clientList = gson.fromJson(body, type);
-                if (clientList == null) clientList = new ArrayList<>();
+                List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
+
+                allCustomers.clear();
+                filteredCustomers.clear();
+
+                if (customers != null) {
+                    allCustomers.addAll(customers);
+                    filteredCustomers.addAll(customers);
+                }
 
                 runOnUiThread(() -> {
-                    tvCount.setText("Total Registered Borrowers: " + clientList.size());
-                    filterClients(etSearch.getText().toString().trim());
-                });
-            }
-        });
-    }
-
-    private void filterClients(String query) {
-        List<Map<String, Object>> filtered = new ArrayList<>();
-        for (Map<String, Object> c : clientList) {
-            String name = c.get("name") != null ? c.get("name").toString().toLowerCase() : "";
-            String phone = c.get("phone") != null ? c.get("phone").toString() : "";
-            if (name.contains(query) || phone.contains(query)) {
-                filtered.add(c);
-            }
-        }
-
-        if (filtered.isEmpty()) {
-            tvEmpty.setVisibility(View.VISIBLE);
-        } else {
-            tvEmpty.setVisibility(View.GONE);
-        }
-
-        rv.setAdapter(new RecyclerView.Adapter<ClientVH>() {
-            @NonNull
-            @Override public ClientVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
-                return new ClientVH(v);
-            }
-
-            @Override public void onBindViewHolder(@NonNull ClientVH holder, int position) {
-                Map<String, Object> client = filtered.get(position);
-                String name = client.get("name") != null ? client.get("name").toString() : "Customer";
-                String phone = client.get("phone") != null ? client.get("phone").toString() : "";
-                double due = phoneDueMap.getOrDefault(phone, 0.0);
-
-                holder.tvName.setText(name);
-                holder.tvPhone.setText("+91 " + phone);
-                holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", due));
-                holder.tvAvatar.setText(name.isEmpty() ? "C" : String.valueOf(name.charAt(0)).toUpperCase());
-
-                // Click card -> View full profile
-                holder.card.setOnClickListener(v -> showProfileDialog(client, due));
-
-                // Call
-                holder.btnCall.setOnClickListener(v -> 
-                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
-                );
-
-                // WhatsApp
-                holder.btnWa.setOnClickListener(v -> {
-                    String clean = phone.replaceAll("[^0-9]", "");
-                    if (clean.length() == 10) clean = "91" + clean;
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean)));
-                });
-
-                // Delete Button on Card
-                holder.btnDelete.setOnClickListener(v -> confirmDeleteCustomer(phone, name));
-            }
-
-            @Override public int getItemCount() { return filtered.size(); }
-        });
-    }
-
-    private void showProfileDialog(Map<String, Object> c, double due) {
-        String name = c.get("name") != null ? c.get("name").toString() : "Customer";
-        String phone = c.get("phone") != null ? c.get("phone").toString() : "";
-
-        String profileDetails = "👤 Name: " + name + "\n"
-                + "📞 Mobile: " + phone + "\n"
-                + "📅 DOB: " + (c.get("dob") != null ? c.get("dob") : "-") + "\n"
-                + "🏡 Village: " + (c.get("village") != null ? c.get("village") : "-") + "\n"
-                + "📮 Post Office: " + (c.get("post_office") != null ? c.get("post_office") : "-") + "\n"
-                + "👮 Police Station: " + (c.get("police_station") != null ? c.get("police_station") : "-") + "\n"
-                + "📍 District: " + (c.get("district") != null ? c.get("district") : "-") + "\n"
-                + "📌 PIN: " + (c.get("pin_code") != null ? c.get("pin_code") : "-") + "\n"
-                + "👥 Reference: " + (c.get("reference_phone") != null ? c.get("reference_phone") : "-") + "\n"
-                + "💳 UPI ID: " + (c.get("upi_id") != null ? c.get("upi_id") : "Not set") + "\n\n"
-                + "⚠️ Outstanding Due Balance: ₹" + (int)due;
-
-        new AlertDialog.Builder(this)
-                .setTitle("Borrower Profile Details")
-                .setMessage(profileDetails)
-                .setPositiveButton("Close", null)
-                .setNeutralButton("Delete Client", (dialog, which) -> confirmDeleteCustomer(phone, name))
-                .show();
-    }
-
-    private void confirmDeleteCustomer(String phone, String name) {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Customer Profile?")
-                .setMessage("Are you sure you want to permanently delete " + name + " (+91 " + phone + ")?\n\nAll loan applications and transaction history for this customer will also be removed.")
-                .setPositiveButton("Delete", (dialog, which) -> executeCustomerDeletion(phone))
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void executeCustomerDeletion(String phone) {
-        Toast.makeText(this, "Deleting customer...", Toast.LENGTH_SHORT).show();
-
-        // 1. Delete associated transactions
-        Request delTxReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?customer_phone=eq." + phone)
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .delete()
-                .build();
-
-        client.newCall(delTxReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                proceedToDeleteLoans(phone);
-            }
-
-            @Override public void onResponse(Call call, Response response) {
-                proceedToDeleteLoans(phone);
-            }
-        });
-    }
-
-    private void proceedToDeleteLoans(String phone) {
-        // 2. Delete associated loans
-        Request delLoansReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?phone=eq." + phone)
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .delete()
-                .build();
-
-        client.newCall(delLoansReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                proceedToDeleteCustomerRecord(phone);
-            }
-
-            @Override public void onResponse(Call call, Response response) {
-                proceedToDeleteCustomerRecord(phone);
-            }
-        });
-    }
-
-    private void proceedToDeleteCustomerRecord(String phone) {
-        // 3. Delete customer account record
-        Request delCustomerReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?phone=eq." + phone)
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .delete()
-                .build();
-
-        client.newCall(delCustomerReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> Toast.makeText(MasterActivity.this, "Failed to delete from database", Toast.LENGTH_SHORT).show());
-            }
-
-            @Override public void onResponse(Call call, Response response) {
-                runOnUiThread(() -> {
-                    if (response.isSuccessful()) {
-                        Toast.makeText(MasterActivity.this, "Customer profile deleted successfully", Toast.LENGTH_SHORT).show();
-                        loadDueBalancesAndClients();
-                    } else {
-                        Toast.makeText(MasterActivity.this, "Error deleting (" + response.code() + ")", Toast.LENGTH_SHORT).show();
+                    if (tvCount != null) {
+                        tvCount.setText(filteredCustomers.size() + " Active Borrowers");
                     }
+                    if (tvEmpty != null) {
+                        tvEmpty.setVisibility(filteredCustomers.isEmpty() ? View.VISIBLE : View.GONE);
+                    }
+
+                    rv.setAdapter(new RecyclerView.Adapter<ClientVH>() {
+                        @NonNull
+                        @Override public ClientVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
+                            return new ClientVH(v);
+                        }
+
+                        @Override public void onBindViewHolder(@NonNull ClientVH holder, int position) {
+                            Map<String, Object> c = filteredCustomers.get(position);
+                            String phone = c.get("phone") != null ? String.valueOf(c.get("phone")) : "";
+                            String name = c.get("name") != null ? String.valueOf(c.get("name")) : "Borrower";
+                            double dueBalance = phoneToDueMap.getOrDefault(phone, 0.0);
+
+                            holder.tvName.setText(name);
+                            holder.tvPhone.setText("+91 " + phone);
+                            holder.tvDue.setText(String.format(Locale.getDefault(), "Due: ₹%.0f", dueBalance));
+
+                            // Launch the modern CustomerProfileActivity on card tap
+                            holder.itemView.setOnClickListener(v -> openCustomerProfile(phone));
+                            if (holder.btnViewProfile != null) {
+                                holder.btnViewProfile.setOnClickListener(v -> openCustomerProfile(phone));
+                            }
+
+                            if (holder.btnCall != null) {
+                                holder.btnCall.setOnClickListener(v -> 
+                                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
+                                );
+                            }
+                        }
+
+                        @Override public int getItemCount() { return filteredCustomers.size(); }
+                    });
                 });
             }
         });
+    }
+
+    private void openCustomerProfile(String phone) {
+        Intent intent = new Intent(MasterActivity.this, CustomerProfileActivity.class);
+        intent.putExtra("CUSTOMER_PHONE", phone);
+        intent.putExtra("phone", phone);
+        startActivity(intent);
     }
 
     static class ClientVH extends RecyclerView.ViewHolder {
-        View card;
-        TextView tvAvatar, tvName, tvPhone, tvDue;
-        Button btnCall, btnWa, btnDelete;
+        TextView tvName, tvPhone, tvDue;
+        Button btnViewProfile, btnCall;
 
         ClientVH(@NonNull View v) {
             super(v);
-            card = v.findViewById(R.id.cardClientItem);
-            tvAvatar = v.findViewById(R.id.tvAvatarInitial);
             tvName = v.findViewById(R.id.tvClientName);
             tvPhone = v.findViewById(R.id.tvClientPhone);
             tvDue = v.findViewById(R.id.tvClientDueBalance);
-            btnCall = v.findViewById(R.id.btnMasterCall);
-            btnWa = v.findViewById(R.id.btnMasterWhatsApp);
-            btnDelete = v.findViewById(R.id.btnMasterDelete);
+            btnViewProfile = v.findViewById(R.id.btnViewClientProfile);
+            btnCall = v.findViewById(R.id.btnCallClient);
         }
     }
 }
