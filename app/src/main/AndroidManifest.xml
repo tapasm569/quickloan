@@ -1,24 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Network and Communication Permissions -->
+    <!-- Safe Network Permissions (HTTPS Only) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.SEND_SMS" />
 
-    <!-- Android 11+ Package Visibility Declarations -->
+    <!-- Package Visibility for WhatsApp, Dialing & PDF Viewers -->
     <queries>
-        <!-- WhatsApp Package Visibility -->
         <package android:name="com.whatsapp" />
         <package android:name="com.whatsapp.w4b" />
 
-        <!-- PDF Reader Viewers -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="application/pdf" />
         </intent>
 
-        <!-- Phone Dialer -->
         <intent>
             <action android:name="android.intent.action.DIAL" />
             <data android:scheme="tel" />
@@ -32,9 +28,9 @@
         android:label="QuickLoan"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
-        <!-- Splash Screen (App Launch Entry Point) -->
+        <!-- Splash Screen Entry -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
@@ -45,7 +41,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Authentication Activities -->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
@@ -58,7 +53,6 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- Lender Portal Activities -->
         <activity
             android:name=".LenderMainActivity"
             android:exported="false"
@@ -101,7 +95,6 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <!-- Customer Portal Activities -->
         <activity
             android:name=".CustomerMainActivity"
             android:exported="false"
@@ -128,7 +121,7 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
-        <!-- FileProvider for PDF Viewing and WhatsApp Sharing -->
+        <!-- Secure Storage FileProvider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
