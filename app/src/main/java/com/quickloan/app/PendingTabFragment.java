@@ -18,9 +18,7 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -58,8 +56,16 @@ public class PendingTabFragment extends Fragment {
         loadDuePayments();
     }
 
+    private double parseDoubleSafe(Object obj) {
+        if (obj == null) return 0.0;
+        try {
+            return Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
     private void loadDuePayments() {
-        // Fetch real names from customers table
         Request custReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
                 .addHeader("apikey", API_KEY)
@@ -69,7 +75,7 @@ public class PendingTabFragment extends Fragment {
 
         client.newCall(custReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                fetchDueLoans(new HashMap<>());
+                fetchActiveLoans(new HashMap<>());
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -85,48 +91,12 @@ public class PendingTabFragment extends Fragment {
                         }
                     }
                 }
-                fetchDueLoans(phoneToName);
+                fetchActiveLoans(phoneToName);
             }
         });
     }
 
-    private void fetchDueLoans(Map<String, String> phoneToName) {
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-
-        Request txReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?transaction_date=eq." + today + "&payment_type=eq.DAILY_EMI")
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .get()
-                .build();
-
-        client.newCall(txReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                if (getActivity() != null) requireActivity().runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
-            }
-
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                Map<Integer, Double> todayPaidMap = new HashMap<>();
-                if (response.isSuccessful() && response.body() != null) {
-                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
-                    if (txs != null) {
-                        for (Map<String, Object> t : txs) {
-                            if (t.get("loan_id") != null && t.get("amount") != null) {
-                                int loanId = ((Double) t.get("loan_id")).intValue();
-                                double amt = ((Double) t.get("amount"));
-                                todayPaidMap.put(loanId, todayPaidMap.getOrDefault(loanId, 0.0) + amt);
-                            }
-                        }
-                    }
-                }
-
-                fetchActiveLoans(todayPaidMap, phoneToName);
-            }
-        });
-    }
-
-    private void fetchActiveLoans(Map<Integer, Double> todayPaidMap, Map<String, String> phoneToName) {
+    private void fetchActiveLoans(Map<String, String> phoneToName) {
         Request loanReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?disbursement_status=eq.DISBURSED&is_paid=eq.0&order=id.desc")
                 .addHeader("apikey", API_KEY)
@@ -148,13 +118,16 @@ public class PendingTabFragment extends Fragment {
 
                 List<Map<String, Object>> dueList = new ArrayList<>();
                 for (Map<String, Object> l : loans) {
-                    int loanId = ((Double) l.get("id")).intValue();
-                    double emi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
-                    double paidToday = todayPaidMap.getOrDefault(loanId, 0.0);
-                    double effectiveDueToday = Math.max(0.0, emi - paidToday);
+                    String startDate = l.get("date") != null ? String.valueOf(l.get("date")) : "";
+                    double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
+                    double total = parseDoubleSafe(l.get("amount"));
+                    double paid = parseDoubleSafe(l.get("paid_amount"));
 
-                    if (effectiveDueToday > 0) {
-                        l.put("current_today_due", effectiveDueToday);
+                    // Calculates accumulated due: (Days * EMI) - Paid
+                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, total, paid);
+
+                    if (accumulatedDue > 0) {
+                        l.put("current_today_due", accumulatedDue);
                         dueList.add(l);
                     }
                 }
@@ -163,7 +136,7 @@ public class PendingTabFragment extends Fragment {
                     requireActivity().runOnUiThread(() -> {
                         if (dueList.isEmpty()) {
                             tvEmpty.setVisibility(View.VISIBLE);
-                            tvEmpty.setText("All daily dues for today have been paid!");
+                            tvEmpty.setText("All daily dues are cleared! No pending payments.");
                         } else {
                             tvEmpty.setVisibility(View.GONE);
                         }
@@ -179,15 +152,14 @@ public class PendingTabFragment extends Fragment {
                                 Map<String, Object> l = dueList.get(position);
                                 String phone = String.valueOf(l.get("phone"));
 
-                                // Prioritize real registered customer name
                                 String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
                                 if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
                                     name = phone;
                                 }
 
-                                double todaysDue = l.get("current_today_due") != null ? ((Double) l.get("current_today_due")) : 0;
-                                double total = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
-                                double paid = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
+                                double todaysDue = parseDoubleSafe(l.get("current_today_due"));
+                                double total = parseDoubleSafe(l.get("amount"));
+                                double paid = parseDoubleSafe(l.get("paid_amount"));
                                 double remainingBalance = Math.max(0.0, total - paid);
 
                                 holder.tvName.setText(name);
@@ -204,7 +176,7 @@ public class PendingTabFragment extends Fragment {
                                 holder.btnWhatsApp.setOnClickListener(v -> {
                                     String clean = dialPhone.replaceAll("[^0-9]", "");
                                     if (clean.length() == 10) clean = "91" + clean;
-                                    String msg = "Hello " + finalName + ", your daily EMI of ₹" + (int)todaysDue + " is due today. Please pay to keep your account current.";
+                                    String msg = "Hello " + finalName + ", your accumulated due of ₹" + (int)todaysDue + " is due today. Please pay to keep your account current.";
                                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + clean + "&text=" + Uri.encode(msg))));
                                 });
                             }
