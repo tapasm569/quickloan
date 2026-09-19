@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="46dp"
+    android:background="#0F172A"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="10dp">
+
+    <!-- SL No -->
+    <TextView
+        android:id="@+id/tvCustRowSl"
+        android:layout_width="38dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="1"
+        android:textColor="#94A3B8"
+        android:textSize="11sp" />
+
+    <!-- Date (DD-MM-YYYY) -->
+    <TextView
+        android:id="@+id/tvCustRowDate"
+        android:layout_width="95dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="19-09-2026"
+        android:textColor="#CBD5E1"
+        android:textSize="11sp" />
+
+    <!-- Paid Due Amount -->
+    <TextView
+        android:id="@+id/tvCustRowPaid"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="end"
+        android:paddingEnd="10dp"
+        android:text="₹0"
+        android:textColor="#10B981"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <!-- Remaining Balance After Payment -->
+    <TextView
+        android:id="@+id/tvCustRowRemaining"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.2"
+        android:gravity="end"
+        android:paddingEnd="6dp"
+        android:text="₹0"
+        android:textColor="#F59E0B"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+</LinearLayout>
