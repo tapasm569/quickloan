@@ -93,8 +93,10 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
     private void loadPendingLoans() {
         // Query loans where disbursement_status is PENDING or status is PENDING
+        String url = "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?select=*&or=%28disbursement_status.eq.PENDING%2Cstatus.eq.PENDING%29&order=id.desc";
+
         Request req = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?or=(disbursement_status.eq.PENDING,status.eq.PENDING)&order=id.desc")
+                .url(url)
                 .addHeader("apikey", API_KEY)
                 .addHeader("Authorization", "Bearer " + API_KEY)
                 .get()
@@ -104,26 +106,28 @@ public class ApproveLoanActivity extends AppCompatActivity {
             @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     if (tvEmpty != null) {
-                        tvEmpty.setText("Network error loading loans: " + e.getMessage());
+                        tvEmpty.setText("Network error: " + e.getMessage());
                         tvEmpty.setVisibility(View.VISIBLE);
                     }
                 });
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful() || response.body() == null) {
+                final boolean success = response.isSuccessful();
+                final String responseBody = response.body() != null ? response.body().string() : "";
+
+                if (!success) {
                     runOnUiThread(() -> {
                         if (tvEmpty != null) {
-                            tvEmpty.setText("Failed to load records from Supabase");
+                            tvEmpty.setText("Database Error (" + response.code() + "):\n" + responseBody);
                             tvEmpty.setVisibility(View.VISIBLE);
                         }
                     });
                     return;
                 }
 
-                String body = response.body().string();
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> loans = gson.fromJson(body, type);
+                List<Map<String, Object>> loans = gson.fromJson(responseBody, type);
                 if (loans == null) loans = new ArrayList<>();
 
                 List<Map<String, Object>> finalLoans = loans;
@@ -148,11 +152,11 @@ public class ApproveLoanActivity extends AppCompatActivity {
         int loanId = parseIntSafe(loan.get("id"), 0);
         String phone = String.valueOf(loan.get("customer_phone"));
         String purpose = loan.get("purpose") != null ? String.valueOf(loan.get("purpose")) : "Personal";
-        
-        double initialPrincipal = loan.get("principal") != null ? 
-                parseDoubleSafe(loan.get("principal"), 10000) : 
+
+        double initialPrincipal = loan.get("principal") != null ?
+                parseDoubleSafe(loan.get("principal"), 10000) :
                 parseDoubleSafe(loan.get("amount"), 10000);
-        
+
         double initialRate = parseDoubleSafe(loan.get("interest_rate"), 2.0);
         int initialTenure = parseIntSafe(loan.get("tenure"), 30);
 
@@ -266,7 +270,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         etRate.addTextChangedListener(watcher);
         etTenure.addTextChangedListener(watcher);
 
-        // Buttons: Reject & Approve
+        // Action Buttons: Reject & Approve
         LinearLayout btnRow = new LinearLayout(this);
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         btnRow.setGravity(Gravity.END);
@@ -424,8 +428,8 @@ public class ApproveLoanActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull PendingVH holder, int position) {
             Map<String, Object> l = list.get(position);
             String phone = String.valueOf(l.get("customer_phone"));
-            double amt = l.get("principal") != null ? 
-                    parseDoubleSafe(l.get("principal"), 0) : 
+            double amt = l.get("principal") != null ?
+                    parseDoubleSafe(l.get("principal"), 0) :
                     parseDoubleSafe(l.get("amount"), 0);
 
             holder.tvName.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
@@ -465,4 +469,5 @@ public class ApproveLoanActivity extends AppCompatActivity {
             }
         }
     }
-}
+    }
+                           
