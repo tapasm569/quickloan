@@ -2,16 +2,23 @@ package com.quickloan.app;
 
 import android.app.Dialog;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -52,6 +59,16 @@ public class ApproveLoanActivity extends AppCompatActivity {
         }
 
         loadPendingLoans();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadPendingLoans();
+    }
+
+    private int dpToPx(int dp) {
+        return (int) (dp * getResources().getDisplayMetrics().density);
     }
 
     private void loadPendingLoans() {
@@ -100,30 +117,86 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_approve_loan, null);
-        dialog.setContentView(view);
 
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.92), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        }
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
 
-        TextView tvInfo = view.findViewById(R.id.tvEditDialogBorrowerInfo);
-        EditText etPrincipal = view.findViewById(R.id.etEditLoanPrincipal);
-        EditText etRate = view.findViewById(R.id.etEditLoanRate);
-        EditText etTenure = view.findViewById(R.id.etEditLoanTenure);
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20));
 
-        TextView tvInterest = view.findViewById(R.id.tvEditTotalInterest);
-        TextView tvPayable = view.findViewById(R.id.tvEditTotalPayable);
-        TextView tvDailyEmi = view.findViewById(R.id.tvEditDailyEmi);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#1E293B"));
+        bg.setCornerRadius(dpToPx(16));
+        container.setBackground(bg);
 
-        Button btnCancel = view.findViewById(R.id.btnCancelLoanEdit);
-        Button btnApprove = view.findViewById(R.id.btnConfirmApproveLoan);
+        // Title
+        TextView tvTitle = new TextView(this);
+        tvTitle.setText("Review & Edit Loan");
+        tvTitle.setTextColor(Color.WHITE);
+        tvTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        tvTitle.setTypeface(null, Typeface.BOLD);
+        container.addView(tvTitle);
 
-        tvInfo.setText("Borrower: +91 " + phone);
-        etPrincipal.setText(String.valueOf((int) initialPrincipal));
-        etRate.setText(String.valueOf(initialRate));
-        etTenure.setText(String.valueOf(initialTenure));
+        // Borrower Info
+        TextView tvSub = new TextView(this);
+        tvSub.setText("Borrower: +91 " + phone);
+        tvSub.setTextColor(Color.parseColor("#94A3B8"));
+        tvSub.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvSub.setPadding(0, dpToPx(2), 0, dpToPx(12));
+        container.addView(tvSub);
+
+        // Principal Input
+        TextView lblPrincipal = createLabel("LOAN AMOUNT / PRINCIPAL (₹)");
+        container.addView(lblPrincipal);
+        EditText etPrincipal = createInput(String.valueOf((int) initialPrincipal), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        container.addView(etPrincipal);
+
+        // Interest Rate Input
+        TextView lblRate = createLabel("INTEREST RATE (% PER MONTH)");
+        container.addView(lblRate);
+        EditText etRate = createInput(String.valueOf(initialRate), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        container.addView(etRate);
+
+        // Tenure Input
+        TextView lblTenure = createLabel("TENURE (DAYS)");
+        container.addView(lblTenure);
+        EditText etTenure = createInput(String.valueOf(initialTenure), InputType.TYPE_CLASS_NUMBER);
+        container.addView(etTenure);
+
+        // Live Calculation Box
+        LinearLayout calcBox = new LinearLayout(this);
+        calcBox.setOrientation(LinearLayout.VERTICAL);
+        calcBox.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
+        LinearLayout.LayoutParams calcParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        calcParams.setMargins(0, dpToPx(14), 0, dpToPx(14));
+        calcBox.setLayoutParams(calcParams);
+
+        GradientDrawable calcBg = new GradientDrawable();
+        calcBg.setColor(Color.parseColor("#0F172A"));
+        calcBg.setCornerRadius(dpToPx(10));
+        calcBox.setBackground(calcBg);
+
+        TextView tvInterest = new TextView(this);
+        tvInterest.setTextColor(Color.parseColor("#A855F7"));
+        tvInterest.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tvInterest.setTypeface(null, Typeface.BOLD);
+        calcBox.addView(tvInterest);
+
+        TextView tvPayable = new TextView(this);
+        tvPayable.setTextColor(Color.parseColor("#F59E0B"));
+        tvPayable.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        tvPayable.setTypeface(null, Typeface.BOLD);
+        tvPayable.setPadding(0, dpToPx(4), 0, dpToPx(4));
+        calcBox.addView(tvPayable);
+
+        TextView tvDailyEmi = new TextView(this);
+        tvDailyEmi.setTextColor(Color.parseColor("#10B981"));
+        tvDailyEmi.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        tvDailyEmi.setTypeface(null, Typeface.BOLD);
+        calcBox.addView(tvDailyEmi);
+
+        container.addView(calcBox);
 
         final double[] finalPayable = {0.0};
         final double[] finalEmi = {0.0};
@@ -158,7 +231,26 @@ public class ApproveLoanActivity extends AppCompatActivity {
         etRate.addTextChangedListener(watcher);
         etTenure.addTextChangedListener(watcher);
 
+        // Action Buttons Row
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+        btnRow.setGravity(Gravity.END);
+
+        Button btnCancel = new Button(this);
+        btnCancel.setText("Cancel");
+        btnCancel.setTextColor(Color.parseColor("#CBD5E1"));
+        btnCancel.setBackgroundColor(Color.parseColor("#334155"));
         btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        Button btnApprove = new Button(this);
+        btnApprove.setText("Approve Loan");
+        btnApprove.setTextColor(Color.WHITE);
+        btnApprove.setTypeface(null, Typeface.BOLD);
+        btnApprove.setBackgroundColor(Color.parseColor("#10B981"));
+
+        LinearLayout.LayoutParams btnApproveParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnApproveParams.setMargins(dpToPx(10), 0, 0, 0);
+        btnApprove.setLayoutParams(btnApproveParams);
 
         btnApprove.setOnClickListener(v -> {
             try {
@@ -173,7 +265,49 @@ public class ApproveLoanActivity extends AppCompatActivity {
             }
         });
 
+        btnRow.addView(btnCancel);
+        btnRow.addView(btnApprove);
+        container.addView(btnRow);
+
+        scrollView.addView(container);
+        dialog.setContentView(scrollView);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.92), ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
         dialog.show();
+    }
+
+    private TextView createLabel(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(Color.parseColor("#38BDF8"));
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setPadding(0, dpToPx(8), 0, dpToPx(4));
+        return tv;
+    }
+
+    private EditText createInput(String value, int inputType) {
+        EditText et = new EditText(this);
+        et.setText(value);
+        et.setInputType(inputType);
+        et.setTextColor(Color.WHITE);
+        et.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        et.setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10));
+
+        GradientDrawable inputBg = new GradientDrawable();
+        inputBg.setColor(Color.parseColor("#0F172A"));
+        inputBg.setCornerRadius(dpToPx(8));
+        inputBg.setStroke(dpToPx(1), Color.parseColor("#334155"));
+        et.setBackground(inputBg);
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(46));
+        params.setMargins(0, dpToPx(2), 0, dpToPx(6));
+        et.setLayoutParams(params);
+        return et;
     }
 
     private void executeApproveLoan(int loanId, double principal, double amount, double rate, int tenure, double dailyEmi) {
@@ -197,7 +331,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
 
             @Override public void onResponse(Call call, Response response) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ApproveLoanActivity.this, "Loan approved with modified terms!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ApproveLoanActivity.this, "Loan approved with updated terms!", Toast.LENGTH_SHORT).show();
                     loadPendingLoans();
                 });
             }
@@ -214,7 +348,7 @@ public class ApproveLoanActivity extends AppCompatActivity {
         @NonNull
         @Override
         public PendingVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_pending_loan, parent, false);
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
             return new PendingVH(v);
         }
 
@@ -223,16 +357,18 @@ public class ApproveLoanActivity extends AppCompatActivity {
             Map<String, Object> l = list.get(position);
             String phone = String.valueOf(l.get("customer_phone"));
             double amt = l.get("principal") != null ? Double.parseDouble(String.valueOf(l.get("principal"))) : Double.parseDouble(String.valueOf(l.get("amount")));
-            double rate = l.get("interest_rate") != null ? Double.parseDouble(String.valueOf(l.get("interest_rate"))) : 2.0;
-            int tenure = l.get("tenure") != null ? (int) Double.parseDouble(String.valueOf(l.get("tenure"))) : 30;
-            String purpose = l.get("purpose") != null ? String.valueOf(l.get("purpose")) : "-";
 
-            holder.tvAmount.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
+            holder.tvName.setText(String.format(Locale.getDefault(), "Requested: ₹%.0f", amt));
             holder.tvPhone.setText("+91 " + phone);
-            holder.tvTerms.setText(String.format(Locale.getDefault(), "Terms: %d Days @ %.1f%% / month", tenure, rate));
-            holder.tvPurpose.setText("Purpose: " + purpose);
+            holder.tvDue.setText("PENDING");
 
-            holder.btnReview.setOnClickListener(v -> openEditAndApproveDialog(l));
+            holder.btnAction.setText("Review & Approve");
+            holder.btnAction.setBackgroundColor(Color.parseColor("#10B981"));
+            holder.btnAction.setOnClickListener(v -> openEditAndApproveDialog(l));
+
+            if (holder.btnCall != null) {
+                holder.btnCall.setVisibility(View.GONE);
+            }
         }
 
         @Override
@@ -241,16 +377,16 @@ public class ApproveLoanActivity extends AppCompatActivity {
         }
 
         class PendingVH extends RecyclerView.ViewHolder {
-            TextView tvAmount, tvPhone, tvTerms, tvPurpose;
-            Button btnReview;
+            TextView tvName, tvPhone, tvDue;
+            Button btnAction, btnCall;
 
             PendingVH(@NonNull View v) {
                 super(v);
-                tvAmount = v.findViewById(R.id.tvPendingRequestedAmount);
-                tvPhone = v.findViewById(R.id.tvPendingPhone);
-                tvTerms = v.findViewById(R.id.tvPendingTerms);
-                tvPurpose = v.findViewById(R.id.tvPendingPurpose);
-                btnReview = v.findViewById(R.id.btnReviewAndApprove);
+                tvName = v.findViewById(R.id.tvClientName);
+                tvPhone = v.findViewById(R.id.tvClientPhone);
+                tvDue = v.findViewById(R.id.tvClientDueBalance);
+                btnAction = v.findViewById(R.id.btnViewClientProfile);
+                btnCall = v.findViewById(R.id.btnCallClient);
             }
         }
     }
