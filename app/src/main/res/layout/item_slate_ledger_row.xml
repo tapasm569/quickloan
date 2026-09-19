@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:background="#0F172A" android:gravity="center_vertical" android:layout_height="44dp" android:layout_width="match_parent" android:orientation="horizontal" android:paddingHorizontal="6dp" xmlns:android="[http://schemas.android.com/apk/res/android](http://schemas.android.com/apk/res/android)">
+
+    <!-- Sl No -->
+    <TextView android:gravity="center" android:id="@+id/tvRowSlNo" android:layout_height="wrap_content" android:layout_width="24dp" android:text="1" android:textColor="#94A3B8" android:textSize="10sp"/>
+
+    <!-- Borrower Name -->
+    <TextView android:ellipsize="end" android:id="@+id/tvRowName" android:layout_height="wrap_content" android:layout_weight="1.2" android:layout_width="0dp" android:maxLines="1" android:text="Customer" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold"/>
+
+    <!-- Due Today -->
+    <TextView android:gravity="end" android:id="@+id/tvRowTodaysDue" android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="0dp" android:text="0" android:textColor="#F43F5E" android:textSize="11sp" android:textStyle="bold"/>
+
+    <!-- Today Collection -->
+    <TextView android:gravity="end" android:id="@+id/tvRowTodaysCollection" android:layout_height="wrap_content" android:layout_weight="1.1" android:layout_width="0dp" android:text="0" android:textColor="#38BDF8" android:textSize="11sp" android:textStyle="bold"/>
+
+    <!-- Total Collected Overall -->
+    <TextView android:gravity="end" android:id="@+id/tvRowTotalPaid" android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="0dp" android:text="0" android:textColor="#10B981" android:textSize="11sp" android:textStyle="bold"/>
+
+    <!-- Remaining Balance -->
+    <TextView android:gravity="end" android:id="@+id/tvRowRemainingBalance" android:layout_height="wrap_content" android:layout_weight="1" android:layout_width="0dp" android:text="0" android:textColor="#F59E0B" android:textSize="11sp" android:textStyle="bold"/>
+
+    <!-- Hidden compatibility tags -->
+    <TextView android:id="@+id/tvRowDate" android:layout_height="0dp" android:layout_width="0dp" android:visibility="gone"/>
+
+    <TextView android:id="@+id/tvRowTodaysPayment" android:layout_height="0dp" android:layout_width="0dp" android:visibility="gone"/>
+
+</LinearLayout>
