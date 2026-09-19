@@ -15,7 +15,9 @@ import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +39,11 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         setContentView(R.layout.activity_payment_history);
 
         todayIndianDate = DateHelper.getTodayDate();
+
+        View btnBack = findViewById(R.id.btnBackLedger);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finish());
+        }
 
         tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
         tvTotalDue = findViewById(R.id.tvSlateTotalDue);
@@ -67,7 +74,9 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private double parseDoubleSafe(Object obj) {
         if (obj == null) return 0.0;
         try {
-            return Double.parseDouble(String.valueOf(obj).trim());
+            String s = String.valueOf(obj).trim();
+            if (s.isEmpty()) return 0.0;
+            return Double.parseDouble(s);
         } catch (Exception e) {
             return 0.0;
         }
@@ -76,10 +85,49 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private int parseIntSafe(Object obj) {
         if (obj == null) return 0;
         try {
-            return (int) Double.parseDouble(String.valueOf(obj).trim());
+            String s = String.valueOf(obj).trim();
+            if (s.isEmpty()) return 0;
+            return (int) Double.parseDouble(s);
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    private int calculateDaysElapsed(String startDateStr) {
+        if (startDateStr == null || startDateStr.trim().isEmpty()) return 1;
+        try {
+            SimpleDateFormat sdf;
+            if (startDateStr.contains("-")) {
+                String[] parts = startDateStr.split("-");
+                if (parts[0].length() == 4) {
+                    sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                } else {
+                    sdf = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
+                }
+            } else {
+                return 1;
+            }
+
+            Date start = sdf.parse(startDateStr);
+            SimpleDateFormat zeroFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            Date startZero = zeroFormat.parse(zeroFormat.format(start));
+            Date nowZero = zeroFormat.parse(zeroFormat.format(new Date()));
+
+            if (startZero != null && nowZero != null) {
+                long diff = nowZero.getTime() - startZero.getTime();
+                int days = (int) (diff / (1000 * 60 * 60 * 24)) + 1;
+                return Math.max(1, days);
+            }
+        } catch (Exception ignored) {}
+        return 1;
+    }
+
+    private double calculateAccumulatedDueSafe(String startDate, double dailyEmi, double totalAmount, double paidAmount) {
+        int days = calculateDaysElapsed(startDate);
+        double expectedDue = days * dailyEmi;
+        double remainingBalance = Math.max(0.0, totalAmount - paidAmount);
+        double overdue = Math.max(0.0, expectedDue - paidAmount);
+        return Math.min(overdue, remainingBalance);
     }
 
     private void loadCustomerNamesAndData() {
@@ -91,22 +139,26 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(custReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
+            @Override
+            public void onFailure(Call call, IOException e) {
                 fetchTodayTransactions(new HashMap<>());
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
                 Map<String, String> phoneToName = new HashMap<>();
                 if (response.isSuccessful() && response.body() != null) {
-                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
-                    if (customers != null) {
-                        for (Map<String, Object> c : customers) {
-                            String p = String.valueOf(c.get("phone"));
-                            String n = c.get("name") != null ? String.valueOf(c.get("name")) : "";
-                            if (!n.isEmpty()) phoneToName.put(p, n);
+                    try {
+                        Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                        List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
+                        if (customers != null) {
+                            for (Map<String, Object> c : customers) {
+                                String p = String.valueOf(c.get("phone"));
+                                String n = c.get("name") != null ? String.valueOf(c.get("name")) : "";
+                                if (!n.isEmpty()) phoneToName.put(p, n);
+                            }
                         }
-                    }
+                    } catch (Exception ignored) {}
                 }
                 fetchTodayTransactions(phoneToName);
             }
@@ -122,28 +174,32 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(txReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
+            @Override
+            public void onFailure(Call call, IOException e) {
                 fetchLoansAndBuildSlate(new HashMap<>(), 0.0, phoneToName);
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
                 Map<Integer, Double> loanTodayPaidMap = new HashMap<>();
                 double totalTodayPaidSum = 0;
 
                 if (response.isSuccessful() && response.body() != null) {
-                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
-                    if (txs != null) {
-                        for (Map<String, Object> t : txs) {
-                            String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
-                            if (todayIndianDate.equals(txDate)) {
-                                int loanId = parseIntSafe(t.get("loan_id"));
-                                double amt = parseDoubleSafe(t.get("amount"));
-                                loanTodayPaidMap.put(loanId, loanTodayPaidMap.getOrDefault(loanId, 0.0) + amt);
-                                totalTodayPaidSum += amt;
+                    try {
+                        Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                        List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
+                        if (txs != null) {
+                            for (Map<String, Object> t : txs) {
+                                String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
+                                if (todayIndianDate.equals(txDate)) {
+                                    int loanId = parseIntSafe(t.get("loan_id"));
+                                    double amt = parseDoubleSafe(t.get("amount"));
+                                    loanTodayPaidMap.put(loanId, loanTodayPaidMap.getOrDefault(loanId, 0.0) + amt);
+                                    totalTodayPaidSum += amt;
+                                }
                             }
                         }
-                    }
+                    } catch (Exception ignored) {}
                 }
                 fetchLoansAndBuildSlate(loanTodayPaidMap, totalTodayPaidSum, phoneToName);
             }
@@ -164,18 +220,23 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(loanReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
+            @Override
+            public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
                 });
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) return;
-                String body = response.body() != null ? response.body().string() : "";
-                Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> loans = gson.fromJson(body, type);
-                if (loans == null) loans = new ArrayList<>();
+                List<Map<String, Object>> loans = new ArrayList<>();
+                try {
+                    String body = response.body() != null ? response.body().string() : "";
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> res = gson.fromJson(body, type);
+                    if (res != null) loans = res;
+                } catch (Exception ignored) {}
 
                 List<SlateEntry> slateEntries = new ArrayList<>();
                 double sumDue = 0;
@@ -195,16 +256,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     String startDate = l.get("date") != null ? String.valueOf(l.get("date")) : "";
                     double principal = parseDoubleSafe(l.get("principal"));
                     double totalAmount = parseDoubleSafe(l.get("amount"));
-                    if (principal <= 0) principal = totalAmount; // Fallback if principal wasn't stored separately
+                    if (principal <= 0) principal = totalAmount;
 
                     double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
                     double totalPaidOverall = parseDoubleSafe(l.get("paid_amount"));
 
                     double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
-                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, totalPaidOverall);
+                    double accumulatedDue = calculateAccumulatedDueSafe(startDate, dailyEmi, totalAmount, totalPaidOverall);
                     double todayCollection = loanTodayPaidMap.getOrDefault(loanId, 0.0);
 
-                    // Profit calculation: Proportional interest collected from payments
                     double totalInterestExpected = Math.max(0.0, totalAmount - principal);
                     double interestProfit = totalAmount > 0 ? (totalPaidOverall * (totalInterestExpected / totalAmount)) : 0.0;
 
