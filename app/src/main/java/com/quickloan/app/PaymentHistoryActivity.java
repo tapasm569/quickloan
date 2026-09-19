@@ -49,9 +49,35 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         }
 
         rvTable = findViewById(R.id.rvSlateTable);
-        rvTable.setLayoutManager(new LinearLayoutManager(this));
+        if (rvTable != null) {
+            rvTable.setLayoutManager(new LinearLayoutManager(this));
+        }
 
         loadCustomerNamesAndData();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadCustomerNamesAndData();
+    }
+
+    private double parseDoubleSafe(Object obj) {
+        if (obj == null) return 0.0;
+        try {
+            return Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    private int parseIntSafe(Object obj) {
+        if (obj == null) return 0;
+        try {
+            return (int) Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private void loadCustomerNamesAndData() {
@@ -64,7 +90,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
         client.newCall(custReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                loadSlateLedgerData(new HashMap<>());
+                fetchLoansAndBuildSlate(new HashMap<>());
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -80,48 +106,12 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                         }
                     }
                 }
-                loadSlateLedgerData(phoneToName);
+                fetchLoansAndBuildSlate(phoneToName);
             }
         });
     }
 
-    private void loadSlateLedgerData(Map<String, String> phoneToName) {
-        Request txReq = new Request.Builder()
-                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?order=id.desc")
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + API_KEY)
-                .get()
-                .build();
-
-        client.newCall(txReq).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
-            }
-
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                Map<Integer, Double> todayPaidMap = new HashMap<>();
-
-                if (response.isSuccessful() && response.body() != null) {
-                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
-                    if (txs != null) {
-                        for (Map<String, Object> t : txs) {
-                            String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
-                            if (todayIndianDate.equals(txDate) && t.get("loan_id") != null && t.get("amount") != null) {
-                                int loanId = ((Double) t.get("loan_id")).intValue();
-                                double amt = ((Double) t.get("amount"));
-                                todayPaidMap.put(loanId, todayPaidMap.getOrDefault(loanId, 0.0) + amt);
-                            }
-                        }
-                    }
-                }
-
-                fetchLoansAndBuildSlate(todayPaidMap, phoneToName);
-            }
-        });
-    }
-
-    private void fetchLoansAndBuildSlate(Map<Integer, Double> todayPaidMap, Map<String, String> phoneToName) {
+    private void fetchLoansAndBuildSlate(Map<String, String> phoneToName) {
         String filterPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
         String url = (filterPhone != null && !filterPhone.isEmpty()) ?
                 "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + filterPhone + "&disbursement_status=eq.DISBURSED&order=id.desc" :
@@ -136,7 +126,9 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
         client.newCall(loanReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> tvEmpty.setVisibility(View.VISIBLE));
+                runOnUiThread(() -> {
+                    if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
+                });
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -148,50 +140,58 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
                 List<SlateEntry> slateEntries = new ArrayList<>();
                 double sumDue = 0;
-                double sumPaid = 0;
+                double sumCollectedTotal = 0;
                 double sumRemaining = 0;
 
                 int sl = 1;
                 for (Map<String, Object> l : loans) {
-                    int loanId = ((Double) l.get("id")).intValue();
                     String phone = String.valueOf(l.get("phone"));
-
                     String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
                     if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
                         name = phone;
                     }
 
-                    double dailyEmi = l.get("daily_emi") != null ? ((Double) l.get("daily_emi")) : 0;
-                    double totalAmount = l.get("amount") != null ? ((Double) l.get("amount")) : 0;
-                    double totalPaidOverall = l.get("paid_amount") != null ? ((Double) l.get("paid_amount")) : 0;
+                    double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
+                    double totalAmount = parseDoubleSafe(l.get("amount"));
+                    
+                    // All collected sum amount from customer
+                    double collectedSum = parseDoubleSafe(l.get("paid_amount"));
+                    double remainingBalance = Math.max(0.0, totalAmount - collectedSum);
+                    double todayDue = Math.min(dailyEmi, remainingBalance);
 
-                    double todayPayment = todayPaidMap.getOrDefault(loanId, 0.0);
-                    double todayDue = Math.max(0.0, dailyEmi - todayPayment);
-                    double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
-
-                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, todayDue, todayPayment, remainingBalance));
+                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, todayDue, collectedSum, remainingBalance));
 
                     sumDue += todayDue;
-                    sumPaid += todayPayment;
+                    sumCollectedTotal += collectedSum;
                     sumRemaining += remainingBalance;
                 }
 
                 double finalSumDue = sumDue;
-                double finalSumPaid = sumPaid;
+                double finalSumCollected = sumCollectedTotal;
                 double finalSumRemaining = sumRemaining;
 
                 runOnUiThread(() -> {
-                    tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumDue));
-                    tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumPaid));
-                    tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumRemaining));
+                    if (isFinishing() || isDestroyed()) return;
 
-                    if (slateEntries.isEmpty()) {
-                        tvEmpty.setVisibility(View.VISIBLE);
-                    } else {
-                        tvEmpty.setVisibility(View.GONE);
+                    if (tvTotalDue != null) {
+                        tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumDue));
+                    }
+                    if (tvTotalPaid != null) {
+                        tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumCollected));
+                    }
+                    if (tvTotalRemaining != null) {
+                        tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumRemaining));
                     }
 
-                    rvTable.setAdapter(new SlateAdapter(slateEntries));
+                    if (slateEntries.isEmpty()) {
+                        if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
+                    } else {
+                        if (tvEmpty != null) tvEmpty.setVisibility(View.GONE);
+                    }
+
+                    if (rvTable != null) {
+                        rvTable.setAdapter(new SlateAdapter(slateEntries));
+                    }
                 });
             }
         });
@@ -202,15 +202,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         String date;
         String name;
         double todaysDue;
-        double todaysPayment;
+        double totalCollected;
         double remainingBalance;
 
-        SlateEntry(int slNo, String date, String name, double todaysDue, double todaysPayment, double remainingBalance) {
+        SlateEntry(int slNo, String date, String name, double todaysDue, double totalCollected, double remainingBalance) {
             this.slNo = slNo;
             this.date = date;
             this.name = name;
             this.todaysDue = todaysDue;
-            this.todaysPayment = todaysPayment;
+            this.totalCollected = totalCollected;
             this.remainingBalance = remainingBalance;
         }
     }
@@ -237,7 +237,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
             holder.tvDate.setText(item.date);
             holder.tvName.setText(item.name);
             holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysDue));
-            holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysPayment));
+            holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.totalCollected));
             holder.tvRem.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
 
             if (position % 2 == 1) {
