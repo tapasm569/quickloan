@@ -6,7 +6,7 @@
     android:background="#0B0F19"
     android:orientation="vertical">
 
-    <!-- Top Slate Header -->
+    <!-- Header Bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -16,58 +16,60 @@
         android:paddingHorizontal="16dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="📋 Slate Ledger Book"
-            android:textColor="#F8FAFC"
+            android:layout_weight="1"
+            android:text="Slate Ledger Book"
+            android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/tvSlateCurrentDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/edittext_bg"
-            android:backgroundTint="#1F2937"
+            android:backgroundTint="#1E293B"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
-            android:text="2026-09-18"
+            android:text="19-09-2026"
             android:textColor="#38BDF8"
             android:textSize="12sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Real-time Slate Summary Board -->
+    <!-- 3 Summary Metrics: Total Due, Total Collected Paid, Total Remaining -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="8dp">
+        android:layout_margin="10dp"
+        android:orientation="horizontal">
 
+        <!-- Total Due -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="3dp"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             app:cardBackgroundColor="#1E293B"
-            app:cardCornerRadius="10dp">
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="10dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Today Due"
+                    android:text="TODAY DUE"
                     android:textColor="#94A3B8"
-                    android:textSize="10sp" />
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
                 <TextView
                     android:id="@+id/tvSlateTotalDue"
                     android:layout_width="wrap_content"
@@ -75,29 +77,36 @@
                     android:layout_marginTop="2dp"
                     android:text="₹0"
                     android:textColor="#F43F5E"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- All Collected Sum Amount -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="3dp"
+            android:layout_marginHorizontal="4dp"
             android:layout_weight="1"
             app:cardBackgroundColor="#1E293B"
-            app:cardCornerRadius="10dp">
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="10dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Today Paid"
+                    android:text="TOTAL PAID"
                     android:textColor="#94A3B8"
-                    android:textSize="10sp" />
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
                 <TextView
                     android:id="@+id/tvSlateTotalPaid"
                     android:layout_width="wrap_content"
@@ -105,29 +114,36 @@
                     android:layout_marginTop="2dp"
                     android:text="₹0"
                     android:textColor="#10B981"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- Total Remaining -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_margin="3dp"
+            android:layout_marginStart="4dp"
             android:layout_weight="1"
             app:cardBackgroundColor="#1E293B"
-            app:cardCornerRadius="10dp">
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="10dp">
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Remaining"
+                    android:text="REMAINING"
                     android:textColor="#94A3B8"
-                    android:textSize="10sp" />
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
                 <TextView
                     android:id="@+id/tvSlateTotalRemaining"
                     android:layout_width="wrap_content"
@@ -135,108 +151,98 @@
                     android:layout_marginTop="2dp"
                     android:text="₹0"
                     android:textColor="#F59E0B"
-                    android:textSize="14sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
+    <!-- Table Header Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginHorizontal="6dp"
+        android:background="#1E293B"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp">
+
+        <TextView
+            android:layout_width="28dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="SL"
+            android:textColor="#94A3B8"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="64dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="DATE"
+            android:textColor="#94A3B8"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.4"
+            android:text="NAME"
+            android:textColor="#94A3B8"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="TODAY DUE"
+            android:textColor="#F43F5E"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="TOTAL PAID"
+            android:textColor="#10B981"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="REMAINING"
+            android:textColor="#F59E0B"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- Empty State -->
     <TextView
         android:id="@+id/tvEmptySlate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="30dp"
-        android:text="No ledger entries found"
+        android:text="No running loan records found"
         android:textColor="#64748B"
         android:visibility="gone" />
 
-    <!-- Horizontal Scrollable Slate Table -->
-    <HorizontalScrollView
+    <!-- Ledger Table Rows -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSlateTable"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:scrollbars="horizontal">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
-
-            <!-- Slate Table Header Row -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="44dp"
-                android:background="#1E293B"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="48dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="SL No"
-                    android:textColor="#94A3B8"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="92dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="Date"
-                    android:textColor="#94A3B8"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="125dp"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="8dp"
-                    android:text="Name"
-                    android:textColor="#94A3B8"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="100dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="TODAYS DEU"
-                    android:textColor="#F43F5E"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="115dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="TODAY'S PAYMENT"
-                    android:textColor="#10B981"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="125dp"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:text="REMAINING BALANCE"
-                    android:textColor="#F59E0B"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#334155" />
-
-            <!-- Ledger Rows RecyclerView -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvSlateTable"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent" />
-        </LinearLayout>
-    </HorizontalScrollView>
+        android:layout_marginHorizontal="6dp"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp" />
 
 </LinearLayout>
