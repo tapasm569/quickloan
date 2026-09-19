@@ -1,101 +1,125 @@
 package com.quickloan.app;
 
+import android.app.Dialog;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.fragment.app.Fragment;
-import androidx.viewpager2.adapter.FragmentStateAdapter;
-import androidx.viewpager2.widget.ViewPager2;
-import com.google.android.material.navigation.NavigationView;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
+import java.util.Locale;
 
 public class LenderMainActivity extends AppCompatActivity {
 
-    private DrawerLayout drawerLayout;
-    private ViewPager2 viewPager;
+    public static final String PREF_NAME = "QuickLoanPrefs";
+    public static final String KEY_MONTHLY_RATE = "PREF_MONTHLY_INTEREST_RATE";
 
-    private final int[] tabIcons = new int[]{
-            R.drawable.ic_tab_pending,
-            R.drawable.ic_tab_payment,
-            R.drawable.ic_tab_search,
-            R.drawable.ic_tab_account
-    };
+    private TextView tvCurrentRateBadge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_lender_main);
 
-        drawerLayout = findViewById(R.id.lender_drawer_layout);
+        tvCurrentRateBadge = findViewById(R.id.tvLenderCurrentRateBadge);
+        updateRateDisplay();
 
-        // Click right hamburger icon -> open right-hand drawer
-        findViewById(R.id.btnLenderRightHamburger).setOnClickListener(v -> 
-            drawerLayout.openDrawer(GravityCompat.END)
-        );
+        View btnSetInterest = findViewById(R.id.btnLenderSetInterest);
+        if (btnSetInterest != null) {
+            btnSetInterest.setOnClickListener(v -> showSetInterestRateDialog());
+        }
 
-        viewPager = findViewById(R.id.viewPager);
-        TabLayout tabLayout = findViewById(R.id.tabLayout);
-
-        viewPager.setAdapter(new FragmentStateAdapter(this) {
-            @NonNull
-            @Override
-            public Fragment createFragment(int position) {
-                switch (position) {
-                    case 0: return new PendingTabFragment();
-                    case 1: return new PaidTabFragment();
-                    case 2: return new SearchTabFragment();
-                    case 3:
-                    default: return new AccountDashboardFragment();
-                }
-            }
-
-            @Override
-            public int getItemCount() {
-                return tabIcons.length;
-            }
-        });
-
-        // Set up tab logos
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> 
-            tab.setIcon(tabIcons[position])
-        ).attach();
-
-        // Right Drawer Menu actions
-        NavigationView navView = findViewById(R.id.nav_view_lender);
-        navView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
-            drawerLayout.closeDrawer(GravityCompat.END);
-
-            if (id == R.id.nav_lender_home) {
-                viewPager.setCurrentItem(0, true);
-            } else if (id == R.id.nav_lender_contact) {
-                showContactDialog();
-            } else if (id == R.id.nav_lender_logout) {
-                Intent intent = new Intent(this, LoginActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                startActivity(intent);
-                finish();
-            }
-            return true;
-        });
+        bindNav(R.id.cardMasterDirectory, MasterActivity.class);
+        bindNav(R.id.cardApproveLoans, ApproveLoanActivity.class);
+        bindNav(R.id.cardLedgerBook, PaymentHistoryActivity.class);
+        bindNav(R.id.cardTodaysDue, TodaysDueActivity.class);
+        bindNav(R.id.cardTodaysPayment, TodaysPaymentActivity.class);
     }
 
-    private void showContactDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Support & Contact")
-                .setMessage("Helpline: +91 9932655607\nEmail: support@quickloan.com")
-                .setPositiveButton("Call Now", (dialog, which) -> {
-                    Intent callIntent = new Intent(Intent.ACTION_DIAL);
-                    callIntent.setData(Uri.parse("tel:9932655607"));
-                    startActivity(callIntent);
-                })
-                .setNegativeButton("Close", null)
-                .show();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateRateDisplay();
+    }
+
+    private void bindNav(int viewId, Class<?> target) {
+        View v = findViewById(viewId);
+        if (v != null) {
+            v.setOnClickListener(view -> startActivity(new Intent(LenderMainActivity.this, target)));
+        }
+    }
+
+    private void updateRateDisplay() {
+        SharedPreferences sp = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        float currentRate = sp.getFloat(KEY_MONTHLY_RATE, 2.0f);
+        if (tvCurrentRateBadge != null) {
+            tvCurrentRateBadge.setText(String.format(Locale.getDefault(), "Current: %.1f%% / month", currentRate));
+        }
+    }
+
+    private void showSetInterestRateDialog() {
+        SharedPreferences sp = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        float currentRate = sp.getFloat(KEY_MONTHLY_RATE, 2.0f);
+
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_set_interest, null);
+        dialog.setContentView(dialogView);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.90), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        EditText etRate = dialogView.findViewById(R.id.etDialogMonthlyRate);
+        TextView tvExample = dialogView.findViewById(R.id.tvDialogRateExample);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancelRate);
+        Button btnSave = dialogView.findViewById(R.id.btnSaveRate);
+
+        etRate.setText(String.valueOf(currentRate));
+
+        etRate.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                try {
+                    double r = Double.parseDouble(s.toString().trim());
+                    double monthlyInt = 10000.0 * (r / 100.0);
+                    tvExample.setText(String.format(Locale.getDefault(), "Calculation: ₹10,000 at %.1f%% for 30 days = ₹%.0f interest", r, monthlyInt));
+                } catch (Exception e) {
+                    tvExample.setText("Enter a valid percentage");
+                }
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        btnSave.setOnClickListener(v -> {
+            String val = etRate.getText().toString().trim();
+            if (val.isEmpty()) {
+                Toast.makeText(this, "Please enter a valid interest rate", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                float newRate = Float.parseFloat(val);
+                sp.edit().putFloat(KEY_MONTHLY_RATE, newRate).apply();
+                updateRateDisplay();
+                dialog.dismiss();
+                Toast.makeText(this, "Preset interest updated to " + newRate + "% per month", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
     }
 }
