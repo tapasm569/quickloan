@@ -6,18 +6,29 @@
     android:background="#0B0F19"
     android:orientation="vertical">
 
-    <!-- Header Bar -->
+    <!-- Top Header Bar with Back Button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="#111827"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
+        android:paddingHorizontal="12dp">
+
+        <TextView
+            android:id="@+id/btnBackLedger"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="←"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:text="Slate Ledger Book"
             android:textColor="#FFFFFF"
@@ -28,8 +39,7 @@
             android:id="@+id/tvSlateCurrentDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/edittext_bg"
-            android:backgroundTint="#1E293B"
+            android:background="#1E293B"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
             android:text="19-09-2026"
@@ -38,7 +48,7 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Row 1 Metrics: Today's Due & Today's Paid Collection -->
+    <!-- Row 1 Metrics: Today Due & Today Paid -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -46,7 +56,6 @@
         android:layout_marginTop="10dp"
         android:orientation="horizontal">
 
-        <!-- Today Due -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -83,7 +92,6 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Today Paid (Sum of Today's Collections) -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -121,7 +129,7 @@
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
-    <!-- Row 2 Metrics: Disbursed Balance, Remaining Balance, Total Interest Profit -->
+    <!-- Row 2 Metrics: Disbursed, Remaining, Profit -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -130,7 +138,6 @@
         android:layout_marginBottom="10dp"
         android:orientation="horizontal">
 
-        <!-- 1. Disbursement Balance (Total Invested) -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -167,7 +174,6 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 2. Remaining Balance -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -204,7 +210,6 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 3. Total Interest Collected (Profit Earned) -->
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -242,76 +247,6 @@
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
-    <!-- Table Header Row with Today's Collection -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginHorizontal="6dp"
-        android:background="#1E293B"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="6dp">
-
-        <TextView
-            android:layout_width="24dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="SL"
-            android:textColor="#94A3B8"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:text="NAME"
-            android:textColor="#94A3B8"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:text="DUE TODAY"
-            android:textColor="#F43F5E"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.1"
-            android:gravity="end"
-            android:text="TODAY'S COLL"
-            android:textColor="#38BDF8"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:text="TOTAL PAID"
-            android:textColor="#10B981"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="end"
-            android:text="REMAINING"
-            android:textColor="#F59E0B"
-            android:textSize="10sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- Empty State Message -->
     <TextView
         android:id="@+id/tvEmptySlate"
         android:layout_width="match_parent"
@@ -322,13 +257,94 @@
         android:textColor="#64748B"
         android:visibility="gone" />
 
-    <!-- Ledger Table Rows -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvSlateTable"
+    <!-- Horizontal Scrollable Ledger Container -->
+    <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginHorizontal="6dp"
-        android:clipToPadding="false"
-        android:paddingBottom="16dp" />
+        android:fillViewport="true"
+        android:scrollbars="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Table Header Row (Width: 680dp) -->
+            <LinearLayout
+                android:layout_width="680dp"
+                android:layout_height="42dp"
+                android:background="#1E293B"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp">
+
+                <TextView
+                    android:layout_width="40dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="SL"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="160dp"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="6dp"
+                    android:text="BORROWER NAME"
+                    android:textColor="#94A3B8"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="110dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:paddingEnd="8dp"
+                    android:text="DUE TODAY"
+                    android:textColor="#F43F5E"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:paddingEnd="8dp"
+                    android:text="TODAY COLL"
+                    android:textColor="#38BDF8"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:paddingEnd="8dp"
+                    android:text="TOTAL PAID"
+                    android:textColor="#10B981"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="130dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:paddingEnd="8dp"
+                    android:text="REMAINING"
+                    android:textColor="#F59E0B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Table Rows RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSlateTable"
+                android:layout_width="680dp"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="16dp" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
 </LinearLayout>
