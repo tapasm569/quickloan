@@ -1,16 +1,18 @@
 package com.quickloan.app;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.telephony.SmsManager;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -26,18 +28,19 @@ import java.util.Random;
 public class CustomerProfileActivity extends AppCompatActivity {
 
     private static final String API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6aWRvaHV3Y2ViZm9vdnlkeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MDUzNjEsImV4cCI6MjEwNTE4MTM2MX0.2yFWPMXFK_UxTZMuv0J9XIPAPomyxP96MwCo9S2VQYY";
-    private static final String LENDER_PHONE = "9932655607";
+    private static final String LENDER_WHATSAPP = "919932655607";
 
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
 
     private TextView tvAvatar, tvName, tvPhone;
-    private TextView tvApprovedLoan, tvPaidBalance;
+    private TextView tvApprovedLoan, tvPaidBalance, tvDueBalance;
     private TextView tvUpi, tvVillage, tvPostOffice, tvPoliceStation, tvDistrictPin, tvRefContact;
     private Button btnCall, btnWhatsApp, btnDelete;
 
     private String customerPhone = "";
     private String currentCustomerName = "";
+    private String activeSecretCode = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +62,7 @@ public class CustomerProfileActivity extends AppCompatActivity {
         tvPhone = findViewById(R.id.tvProfilePhone);
         tvApprovedLoan = findViewById(R.id.tvProfileApprovedLoan);
         tvPaidBalance = findViewById(R.id.tvProfilePaidBalance);
+        tvDueBalance = findViewById(R.id.tvProfileDueBalance);
 
         tvUpi = findViewById(R.id.tvProfileUpi);
         tvVillage = findViewById(R.id.tvProfileVillage);
@@ -72,7 +76,7 @@ public class CustomerProfileActivity extends AppCompatActivity {
         btnDelete = findViewById(R.id.btnDeleteCustomerProfile);
 
         if (customerPhone == null || customerPhone.trim().isEmpty()) {
-            Toast.makeText(this, "Customer information missing", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Customer phone number missing", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -106,7 +110,7 @@ public class CustomerProfileActivity extends AppCompatActivity {
             }
         });
 
-        btnDelete.setOnClickListener(v -> initiateSecureDeletion());
+        btnDelete.setOnClickListener(v -> showModernDeleteDialog());
     }
 
     private void loadCustomerProfile() {
@@ -193,49 +197,63 @@ public class CustomerProfileActivity extends AppCompatActivity {
 
                 double finalApproved = totalApproved;
                 double finalPaid = totalPaid;
+                double finalDue = Math.max(0.0, totalApproved - totalPaid);
 
                 runOnUiThread(() -> {
                     tvApprovedLoan.setText(String.format(Locale.getDefault(), "₹%.0f", finalApproved));
                     tvPaidBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalPaid));
+                    tvDueBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalDue));
                 });
             }
         });
     }
 
-    private void initiateSecureDeletion() {
+    private void showModernDeleteDialog() {
         // Generate random 6-digit verification code
-        int randomCode = 100000 + new Random().nextInt(900000);
-        String secretOtp = String.valueOf(randomCode);
+        int code = 100000 + new Random().nextInt(900000);
+        activeSecretCode = String.valueOf(code);
 
-        // Attempt SMS dispatch to Lender Mobile Number (9932655607)
-        String smsMessage = "QuickLoan Security Code: " + secretOtp + " to authorize deletion of customer " + currentCustomerName + " (" + customerPhone + ").";
-        try {
-            SmsManager smsManager = SmsManager.getDefault();
-            smsManager.sendTextMessage(LENDER_PHONE, null, smsMessage, null, null);
-        } catch (Exception ignored) {}
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_delete_customer, null);
+        dialog.setContentView(dialogView);
 
-        // Prompt Dialog
-        EditText etInput = new EditText(this);
-        etInput.setHint("Enter 6-digit Secret Code");
-        etInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        etInput.setTextColor(Color.WHITE);
-        etInput.setBackgroundResource(R.drawable.edittext_bg);
-        etInput.setPadding(35, 35, 35, 35);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout((int) (getResources().getDisplayMetrics().widthPixels * 0.90), android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
 
-        new AlertDialog.Builder(this)
-                .setTitle("Lender Authorization Required")
-                .setMessage("A 6-digit secret code has been sent to lender mobile: +91 " + LENDER_PHONE + "\n\nSecret Code: " + secretOtp + "\n\nEnter code to permanently delete this customer profile:")
-                .setView(etInput)
-                .setPositiveButton("CONFIRM DELETE", (dialog, which) -> {
-                    String enteredCode = etInput.getText().toString().trim();
-                    if (secretOtp.equals(enteredCode)) {
-                        executeDeleteCustomer();
-                    } else {
-                        Toast.makeText(CustomerProfileActivity.this, "Invalid code! Deletion aborted.", Toast.LENGTH_LONG).show();
-                    }
-                })
-                .setNegativeButton("CANCEL", null)
-                .show();
+        TextView tvSubtitle = dialogView.findViewById(R.id.tvDialogDeleteSubtitle);
+        TextView tvNotice = dialogView.findViewById(R.id.tvCodeSentNotice);
+        Button btnSendWa = dialogView.findViewById(R.id.btnDialogSendWaCode);
+        EditText etCode = dialogView.findViewById(R.id.etDialogSecretCode);
+        Button btnCancel = dialogView.findViewById(R.id.btnDialogCancelDelete);
+        Button btnConfirm = dialogView.findViewById(R.id.btnDialogConfirmDelete);
+
+        if (tvSubtitle != null) {
+            tvSubtitle.setText("Borrower: " + currentCustomerName + " (+91 " + customerPhone + ")");
+        }
+
+        btnSendWa.setOnClickListener(v -> {
+            String message = "QuickLoan Security Authorization Code: " + activeSecretCode + "\nAuthorized to delete borrower: " + currentCustomerName + " (" + customerPhone + ").";
+            Intent waIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://api.whatsapp.com/send?phone=" + LENDER_WHATSAPP + "&text=" + Uri.encode(message)));
+            startActivity(waIntent);
+            if (tvNotice != null) tvNotice.setVisibility(View.VISIBLE);
+        });
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        btnConfirm.setOnClickListener(v -> {
+            String enteredCode = etCode.getText().toString().trim();
+            if (activeSecretCode.equals(enteredCode)) {
+                dialog.dismiss();
+                executeDeleteCustomer();
+            } else {
+                Toast.makeText(CustomerProfileActivity.this, "Incorrect secret code! Verification failed.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        dialog.show();
     }
 
     private void executeDeleteCustomer() {
