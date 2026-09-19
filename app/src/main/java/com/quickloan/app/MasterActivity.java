@@ -57,6 +57,11 @@ public class MasterActivity extends AppCompatActivity {
         }
 
         setupSearchFilter();
+
+        // 1. INSTANT LOAD: Load previous data from phone storage immediately
+        loadFromCache();
+
+        // 2. NETWORK LOAD: Fetch the latest data from internet in the background
         loadActiveLoansSummary();
     }
 
@@ -64,6 +69,27 @@ public class MasterActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         loadActiveLoansSummary();
+    }
+
+    /**
+     * Reads saved JSON data from the phone's internal storage.
+     * This runs in 1 millisecond so the screen never looks empty.
+     */
+    private void loadFromCache() {
+        String cachedCustomers = CacheHelper.getCache(this, "CACHE_MASTER_CUSTOMERS");
+        if (cachedCustomers != null && !cachedCustomers.isEmpty()) {
+            try {
+                Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                List<Map<String, Object>> list = gson.fromJson(cachedCustomers, type);
+                if (list != null && !list.isEmpty()) {
+                    allCustomers.clear();
+                    filteredCustomers.clear();
+                    allCustomers.addAll(list);
+                    filteredCustomers.addAll(list);
+                    updateRecyclerView();
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     private double parseDoubleSafe(Object obj) {
@@ -99,14 +125,49 @@ public class MasterActivity extends AppCompatActivity {
                 }
             }
         }
+        updateRecyclerView();
+    }
 
+    private void updateRecyclerView() {
         if (tvCount != null) {
-            tvCount.setText(filteredCustomers.size() + " Borrowers Found");
+            tvCount.setText(filteredCustomers.size() + " Borrowers");
         }
         if (tvEmpty != null) {
             tvEmpty.setVisibility(filteredCustomers.isEmpty() ? View.VISIBLE : View.GONE);
         }
-        if (rv != null && rv.getAdapter() != null) {
+
+        if (rv.getAdapter() == null) {
+            rv.setAdapter(new RecyclerView.Adapter<ClientVH>() {
+                @NonNull
+                @Override public ClientVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                    View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
+                    return new ClientVH(v);
+                }
+
+                @Override public void onBindViewHolder(@NonNull ClientVH holder, int position) {
+                    Map<String, Object> c = filteredCustomers.get(position);
+                    String phone = c.get("phone") != null ? String.valueOf(c.get("phone")) : "";
+                    String name = c.get("name") != null ? String.valueOf(c.get("name")) : "Borrower";
+                    double dueBalance = phoneToDueMap.getOrDefault(phone, 0.0);
+
+                    holder.tvName.setText(name);
+                    holder.tvPhone.setText("+91 " + phone);
+                    holder.tvDue.setText(String.format(Locale.getDefault(), "Due: ₹%.0f", dueBalance));
+
+                    holder.itemView.setOnClickListener(v -> openCustomerProfile(phone));
+                    if (holder.btnViewProfile != null) {
+                        holder.btnViewProfile.setOnClickListener(v -> openCustomerProfile(phone));
+                    }
+                    if (holder.btnCall != null) {
+                        holder.btnCall.setOnClickListener(v -> 
+                            startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
+                        );
+                    }
+                }
+
+                @Override public int getItemCount() { return filteredCustomers.size(); }
+            });
+        } else {
             rv.getAdapter().notifyDataSetChanged();
         }
     }
@@ -121,7 +182,7 @@ public class MasterActivity extends AppCompatActivity {
 
         client.newCall(loanReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                loadCustomers();
+                loadCustomersFromNetwork();
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -139,12 +200,12 @@ public class MasterActivity extends AppCompatActivity {
                         }
                     }
                 }
-                loadCustomers();
+                loadCustomersFromNetwork();
             }
         });
     }
 
-    private void loadCustomers() {
+    private void loadCustomersFromNetwork() {
         Request req = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers?order=id.desc")
                 .addHeader("apikey", API_KEY)
@@ -154,64 +215,27 @@ public class MasterActivity extends AppCompatActivity {
 
         client.newCall(req).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> {
-                    if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
-                });
+                // If offline, user can still view the cached data loaded earlier
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful() || response.body() == null) return;
+                String rawJson = response.body().string();
+
+                // Save fresh response into phone cache for next time
+                CacheHelper.saveCache(MasterActivity.this, "CACHE_MASTER_CUSTOMERS", rawJson);
+
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> customers = gson.fromJson(response.body().string(), type);
-
-                allCustomers.clear();
-                filteredCustomers.clear();
-
-                if (customers != null) {
-                    allCustomers.addAll(customers);
-                    filteredCustomers.addAll(customers);
-                }
+                List<Map<String, Object>> customers = gson.fromJson(rawJson, type);
 
                 runOnUiThread(() -> {
-                    if (tvCount != null) {
-                        tvCount.setText(filteredCustomers.size() + " Active Borrowers");
+                    allCustomers.clear();
+                    filteredCustomers.clear();
+                    if (customers != null) {
+                        allCustomers.addAll(customers);
+                        filteredCustomers.addAll(customers);
                     }
-                    if (tvEmpty != null) {
-                        tvEmpty.setVisibility(filteredCustomers.isEmpty() ? View.VISIBLE : View.GONE);
-                    }
-
-                    rv.setAdapter(new RecyclerView.Adapter<ClientVH>() {
-                        @NonNull
-                        @Override public ClientVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_master_client, parent, false);
-                            return new ClientVH(v);
-                        }
-
-                        @Override public void onBindViewHolder(@NonNull ClientVH holder, int position) {
-                            Map<String, Object> c = filteredCustomers.get(position);
-                            String phone = c.get("phone") != null ? String.valueOf(c.get("phone")) : "";
-                            String name = c.get("name") != null ? String.valueOf(c.get("name")) : "Borrower";
-                            double dueBalance = phoneToDueMap.getOrDefault(phone, 0.0);
-
-                            holder.tvName.setText(name);
-                            holder.tvPhone.setText("+91 " + phone);
-                            holder.tvDue.setText(String.format(Locale.getDefault(), "Due: ₹%.0f", dueBalance));
-
-                            // Launch the modern CustomerProfileActivity on card tap
-                            holder.itemView.setOnClickListener(v -> openCustomerProfile(phone));
-                            if (holder.btnViewProfile != null) {
-                                holder.btnViewProfile.setOnClickListener(v -> openCustomerProfile(phone));
-                            }
-
-                            if (holder.btnCall != null) {
-                                holder.btnCall.setOnClickListener(v -> 
-                                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + phone)))
-                                );
-                            }
-                        }
-
-                        @Override public int getItemCount() { return filteredCustomers.size(); }
-                    });
+                    updateRecyclerView();
                 });
             }
         });
