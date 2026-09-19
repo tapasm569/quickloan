@@ -27,7 +27,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
     private final OkHttpClient client = new OkHttpClient();
     private final Gson gson = new Gson();
 
-    private TextView tvDateBadge, tvTotalDue, tvTotalPaid, tvTotalRemaining, tvEmpty;
+    private TextView tvDateBadge, tvTotalDue, tvTodayPaid, tvDisbursementBalance, tvTotalRemaining, tvInterestCollected, tvEmpty;
     private RecyclerView rvTable;
     private String todayIndianDate;
 
@@ -40,8 +40,10 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
         tvDateBadge = findViewById(R.id.tvSlateCurrentDate);
         tvTotalDue = findViewById(R.id.tvSlateTotalDue);
-        tvTotalPaid = findViewById(R.id.tvSlateTotalPaid);
+        tvTodayPaid = findViewById(R.id.tvSlateTodayPaid);
+        tvDisbursementBalance = findViewById(R.id.tvSlateDisbursementBalance);
         tvTotalRemaining = findViewById(R.id.tvSlateTotalRemaining);
+        tvInterestCollected = findViewById(R.id.tvSlateInterestCollected);
         tvEmpty = findViewById(R.id.tvEmptySlate);
 
         if (tvDateBadge != null) {
@@ -71,6 +73,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         }
     }
 
+    private int parseIntSafe(Object obj) {
+        if (obj == null) return 0;
+        try {
+            return (int) Double.parseDouble(String.valueOf(obj).trim());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private void loadCustomerNamesAndData() {
         Request custReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
@@ -81,7 +92,7 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
         client.newCall(custReq).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                fetchLoansAndBuildSlate(new HashMap<>());
+                fetchTodayTransactions(new HashMap<>());
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -97,12 +108,49 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                         }
                     }
                 }
-                fetchLoansAndBuildSlate(phoneToName);
+                fetchTodayTransactions(phoneToName);
             }
         });
     }
 
-    private void fetchLoansAndBuildSlate(Map<String, String> phoneToName) {
+    private void fetchTodayTransactions(Map<String, String> phoneToName) {
+        Request txReq = new Request.Builder()
+                .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loan_transactions?payment_type=eq.DAILY_EMI&order=id.desc")
+                .addHeader("apikey", API_KEY)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .get()
+                .build();
+
+        client.newCall(txReq).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                fetchLoansAndBuildSlate(new HashMap<>(), 0.0, phoneToName);
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                Map<Integer, Double> loanTodayPaidMap = new HashMap<>();
+                double totalTodayPaidSum = 0;
+
+                if (response.isSuccessful() && response.body() != null) {
+                    Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
+                    List<Map<String, Object>> txs = gson.fromJson(response.body().string(), type);
+                    if (txs != null) {
+                        for (Map<String, Object> t : txs) {
+                            String txDate = DateHelper.formatToIndianDate(String.valueOf(t.get("transaction_date")));
+                            if (todayIndianDate.equals(txDate)) {
+                                int loanId = parseIntSafe(t.get("loan_id"));
+                                double amt = parseDoubleSafe(t.get("amount"));
+                                loanTodayPaidMap.put(loanId, loanTodayPaidMap.getOrDefault(loanId, 0.0) + amt);
+                                totalTodayPaidSum += amt;
+                            }
+                        }
+                    }
+                }
+                fetchLoansAndBuildSlate(loanTodayPaidMap, totalTodayPaidSum, phoneToName);
+            }
+        });
+    }
+
+    private void fetchLoansAndBuildSlate(Map<Integer, Double> loanTodayPaidMap, double totalTodayPaidSum, Map<String, String> phoneToName) {
         String filterPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
         String url = (filterPhone != null && !filterPhone.isEmpty()) ?
                 "https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + filterPhone + "&disbursement_status=eq.DISBURSED&order=id.desc" :
@@ -131,11 +179,13 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
                 List<SlateEntry> slateEntries = new ArrayList<>();
                 double sumDue = 0;
-                double sumCollectedTotal = 0;
+                double sumDisbursed = 0;
                 double sumRemaining = 0;
+                double sumInterestProfit = 0;
 
                 int sl = 1;
                 for (Map<String, Object> l : loans) {
+                    int loanId = parseIntSafe(l.get("id"));
                     String phone = String.valueOf(l.get("phone"));
                     String name = phoneToName.containsKey(phone) ? phoneToName.get(phone) : String.valueOf(l.get("name"));
                     if (name == null || name.isEmpty() || name.startsWith("Borrower (")) {
@@ -143,25 +193,33 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     }
 
                     String startDate = l.get("date") != null ? String.valueOf(l.get("date")) : "";
-                    double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
+                    double principal = parseDoubleSafe(l.get("principal"));
                     double totalAmount = parseDoubleSafe(l.get("amount"));
-                    double collectedSum = parseDoubleSafe(l.get("paid_amount"));
+                    if (principal <= 0) principal = totalAmount; // Fallback if principal wasn't stored separately
 
-                    double remainingBalance = Math.max(0.0, totalAmount - collectedSum);
-                    
-                    // Cumulative due: accounts for missed days
-                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, collectedSum);
+                    double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
+                    double totalPaidOverall = parseDoubleSafe(l.get("paid_amount"));
 
-                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, accumulatedDue, collectedSum, remainingBalance));
+                    double remainingBalance = Math.max(0.0, totalAmount - totalPaidOverall);
+                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, totalPaidOverall);
+                    double todayCollection = loanTodayPaidMap.getOrDefault(loanId, 0.0);
+
+                    // Profit calculation: Proportional interest collected from payments
+                    double totalInterestExpected = Math.max(0.0, totalAmount - principal);
+                    double interestProfit = totalAmount > 0 ? (totalPaidOverall * (totalInterestExpected / totalAmount)) : 0.0;
+
+                    slateEntries.add(new SlateEntry(sl++, name, accumulatedDue, todayCollection, totalPaidOverall, remainingBalance));
 
                     sumDue += accumulatedDue;
-                    sumCollectedTotal += collectedSum;
+                    sumDisbursed += principal;
                     sumRemaining += remainingBalance;
+                    sumInterestProfit += interestProfit;
                 }
 
                 double finalSumDue = sumDue;
-                double finalSumCollected = sumCollectedTotal;
-                double finalSumRemaining = sumRemaining;
+                double finalDisbursed = sumDisbursed;
+                double finalRemaining = sumRemaining;
+                double finalProfit = sumInterestProfit;
 
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
@@ -169,11 +227,17 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                     if (tvTotalDue != null) {
                         tvTotalDue.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumDue));
                     }
-                    if (tvTotalPaid != null) {
-                        tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumCollected));
+                    if (tvTodayPaid != null) {
+                        tvTodayPaid.setText(String.format(Locale.getDefault(), "₹%.0f", totalTodayPaidSum));
+                    }
+                    if (tvDisbursementBalance != null) {
+                        tvDisbursementBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalDisbursed));
                     }
                     if (tvTotalRemaining != null) {
-                        tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalSumRemaining));
+                        tvTotalRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", finalRemaining));
+                    }
+                    if (tvInterestCollected != null) {
+                        tvInterestCollected.setText(String.format(Locale.getDefault(), "₹%.0f", finalProfit));
                     }
 
                     if (slateEntries.isEmpty()) {
@@ -192,18 +256,18 @@ public class PaymentHistoryActivity extends AppCompatActivity {
 
     static class SlateEntry {
         int slNo;
-        String date;
         String name;
         double todaysDue;
-        double totalCollected;
+        double todaysCollection;
+        double totalPaid;
         double remainingBalance;
 
-        SlateEntry(int slNo, String date, String name, double todaysDue, double totalCollected, double remainingBalance) {
+        SlateEntry(int slNo, String name, double todaysDue, double todaysCollection, double totalPaid, double remainingBalance) {
             this.slNo = slNo;
-            this.date = date;
             this.name = name;
             this.todaysDue = todaysDue;
-            this.totalCollected = totalCollected;
+            this.todaysCollection = todaysCollection;
+            this.totalPaid = totalPaid;
             this.remainingBalance = remainingBalance;
         }
     }
@@ -227,10 +291,10 @@ public class PaymentHistoryActivity extends AppCompatActivity {
             SlateEntry item = list.get(position);
 
             holder.tvSl.setText(String.valueOf(item.slNo));
-            holder.tvDate.setText(item.date);
             holder.tvName.setText(item.name);
             holder.tvDue.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysDue));
-            holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.totalCollected));
+            holder.tvTodayColl.setText(String.format(Locale.getDefault(), "₹%.0f", item.todaysCollection));
+            holder.tvTotalPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.totalPaid));
             holder.tvRem.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
 
             if (position % 2 == 1) {
@@ -246,15 +310,15 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         }
 
         static class SlateVH extends RecyclerView.ViewHolder {
-            TextView tvSl, tvDate, tvName, tvDue, tvPaid, tvRem;
+            TextView tvSl, tvName, tvDue, tvTodayColl, tvTotalPaid, tvRem;
 
             SlateVH(@NonNull View v) {
                 super(v);
                 tvSl = v.findViewById(R.id.tvRowSlNo);
-                tvDate = v.findViewById(R.id.tvRowDate);
                 tvName = v.findViewById(R.id.tvRowName);
                 tvDue = v.findViewById(R.id.tvRowTodaysDue);
-                tvPaid = v.findViewById(R.id.tvRowTodaysPayment);
+                tvTodayColl = v.findViewById(R.id.tvRowTodaysCollection);
+                tvTotalPaid = v.findViewById(R.id.tvRowTotalPaid);
                 tvRem = v.findViewById(R.id.tvRowRemainingBalance);
             }
         }
