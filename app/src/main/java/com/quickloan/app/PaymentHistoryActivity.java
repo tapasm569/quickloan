@@ -71,15 +71,6 @@ public class PaymentHistoryActivity extends AppCompatActivity {
         }
     }
 
-    private int parseIntSafe(Object obj) {
-        if (obj == null) return 0;
-        try {
-            return (int) Double.parseDouble(String.valueOf(obj).trim());
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
     private void loadCustomerNamesAndData() {
         Request custReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
@@ -151,17 +142,19 @@ public class PaymentHistoryActivity extends AppCompatActivity {
                         name = phone;
                     }
 
+                    String startDate = l.get("date") != null ? String.valueOf(l.get("date")) : "";
                     double dailyEmi = parseDoubleSafe(l.get("daily_emi"));
                     double totalAmount = parseDoubleSafe(l.get("amount"));
-                    
-                    // All collected sum amount from customer
                     double collectedSum = parseDoubleSafe(l.get("paid_amount"));
+
                     double remainingBalance = Math.max(0.0, totalAmount - collectedSum);
-                    double todayDue = Math.min(dailyEmi, remainingBalance);
+                    
+                    // Cumulative due: accounts for missed days
+                    double accumulatedDue = DateHelper.calculateAccumulatedDue(startDate, dailyEmi, totalAmount, collectedSum);
 
-                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, todayDue, collectedSum, remainingBalance));
+                    slateEntries.add(new SlateEntry(sl++, todayIndianDate, name, accumulatedDue, collectedSum, remainingBalance));
 
-                    sumDue += todayDue;
+                    sumDue += accumulatedDue;
                     sumCollectedTotal += collectedSum;
                     sumRemaining += remainingBalance;
                 }
