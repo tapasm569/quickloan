@@ -3,25 +3,47 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface_bg"
+    android:background="#0B0F19"
     android:orientation="vertical">
 
-    <TextView
+    <!-- Header Bar -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/brand_primary"
-        android:padding="16dp"
-        android:text="Today's Due Collections"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        android:layout_height="56dp"
+        android:background="#111827"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Today's Due Collections"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvDueCurrentDateBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_bg"
+            android:backgroundTint="#1E293B"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="19-09-2026"
+            android:textColor="#38BDF8"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <!-- Total Due Summary Card -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="12dp"
-        app:cardBackgroundColor="@color/card_bg"
+        app:cardBackgroundColor="#1E293B"
         app:cardCornerRadius="14dp"
         app:cardElevation="2dp">
 
@@ -34,9 +56,10 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Total Daily EMI Due Today"
-                android:textColor="@color/text_muted"
-                android:textSize="12sp" />
+                android:text="TOTAL DUE TO COLLECT TODAY"
+                android:textColor="#94A3B8"
+                android:textSize="11sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvTotalDueAmount"
@@ -44,25 +67,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="₹0"
-                android:textColor="@color/brand_rose"
+                android:textColor="#F43F5E"
                 android:textSize="24sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Empty State Text -->
     <TextView
         android:id="@+id/tvEmptyDue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:padding="24dp"
-        android:text="No active loan dues found for today"
-        android:textColor="@color/text_muted"
+        android:padding="40dp"
+        android:text="No pending dues for today! All borrowers paid."
+        android:textColor="#64748B"
+        android:textSize="14sp"
         android:visibility="gone" />
 
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvTodaysDue"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingHorizontal="6dp" />
+        android:clipToPadding="false"
+        android:paddingHorizontal="6dp"
+        android:paddingBottom="16dp" />
+
 </LinearLayout>
