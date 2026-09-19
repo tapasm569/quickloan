@@ -30,12 +30,6 @@
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
         android:usesCleartextTraffic="false">
 
-          <activity
-    android:name=".AddBorrowerActivity"
-    android:exported="false"
-    android:screenOrientation="portrait" />
-
-
         <!-- Splash Screen Entry -->
         <activity
             android:name=".SplashActivity"
@@ -47,6 +41,7 @@
             </intent-filter>
         </activity>
 
+        <!-- Authentication -->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
@@ -59,8 +54,20 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Lender Dashboard & Activities -->
         <activity
             android:name=".LenderMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".AddBorrowerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ApproveLoanActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 
@@ -69,11 +76,6 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
-
-        <activity
-            android:name=".ApproveLoanActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
 
         <activity
             android:name=".TransferMoneyActivity"
@@ -96,13 +98,14 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!-- Customer Dashboard & Activities -->
         <activity
-            android:name=".CustomerProfileActivity"
+            android:name=".CustomerMainActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".CustomerMainActivity"
+            android:name=".CustomerProfileActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
 
