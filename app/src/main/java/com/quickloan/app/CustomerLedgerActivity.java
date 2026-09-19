@@ -3,10 +3,13 @@ package com.quickloan.app;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -14,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import okhttp3.*;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -30,28 +34,26 @@ public class CustomerLedgerActivity extends AppCompatActivity {
 
     private TextView tvApprovedLoan, tvPaidBalance, tvRemainingBalance, tvDateBadge, tvEmpty;
     private RecyclerView rvLedger;
+    private Button btnViewPdf, btnSendWa;
 
     private String customerPhone = "";
+    private final List<CustLedgerEntry> currentEntries = new ArrayList<>();
+    private double curApproved = 0.0, curPaid = 0.0, curRemaining = 0.0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_customer_ledger);
 
-        // Resolve customer phone from intent or stored session
         customerPhone = getIntent().getStringExtra("CUSTOMER_PHONE");
-        if (customerPhone == null || customerPhone.isEmpty()) {
-            customerPhone = getIntent().getStringExtra("phone");
-        }
+        if (customerPhone == null || customerPhone.isEmpty()) customerPhone = getIntent().getStringExtra("phone");
         if (customerPhone == null || customerPhone.isEmpty()) {
             SharedPreferences sp = getSharedPreferences("QuickLoanPrefs", MODE_PRIVATE);
             customerPhone = sp.getString("phone", sp.getString("customer_phone", ""));
         }
 
         View btnBack = findViewById(R.id.btnBackCustomerLedger);
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> finish());
-        }
+        if (btnBack != null) btnBack.setOnClickListener(v -> finish());
 
         tvApprovedLoan = findViewById(R.id.tvCustApprovedLoan);
         tvPaidBalance = findViewById(R.id.tvCustPaidBalance);
@@ -59,22 +61,45 @@ public class CustomerLedgerActivity extends AppCompatActivity {
         tvDateBadge = findViewById(R.id.tvCustomerLedgerDate);
         tvEmpty = findViewById(R.id.tvEmptyCustomerLedger);
 
-        if (tvDateBadge != null) {
-            tvDateBadge.setText(DateHelper.getTodayDate());
-        }
+        btnViewPdf = findViewById(R.id.btnCustViewPdf);
+        btnSendWa = findViewById(R.id.btnCustSendWa);
+
+        if (tvDateBadge != null) tvDateBadge.setText(DateHelper.getTodayDate());
 
         rvLedger = findViewById(R.id.rvCustomerLedger);
-        if (rvLedger != null) {
-            rvLedger.setLayoutManager(new LinearLayoutManager(this));
-        }
+        if (rvLedger != null) rvLedger.setLayoutManager(new LinearLayoutManager(this));
 
+        setupPdfButtons();
         loadCustomerLedgerData();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        loadCustomerLedgerData();
+    private void setupPdfButtons() {
+        btnViewPdf.setOnClickListener(v -> {
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+            if (dir == null) dir = getFilesDir();
+            File expectedPdf = new File(dir, "Customer_Statement_" + customerPhone + ".pdf");
+
+            // Condition: Directly open from storage if file is already created; otherwise generate and open
+            if (expectedPdf.exists() && expectedPdf.length() > 0) {
+                PdfHelper.openPdfFromStorage(CustomerLedgerActivity.this, expectedPdf);
+            } else {
+                File generated = PdfHelper.generateCustomerPdf(CustomerLedgerActivity.this, customerPhone, curApproved, curPaid, curRemaining, currentEntries);
+                if (generated != null && generated.exists()) {
+                    PdfHelper.openPdfFromStorage(CustomerLedgerActivity.this, generated);
+                } else {
+                    Toast.makeText(CustomerLedgerActivity.this, "Failed to generate statement PDF.", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        btnSendWa.setOnClickListener(v -> {
+            File generated = PdfHelper.generateCustomerPdf(CustomerLedgerActivity.this, customerPhone, curApproved, curPaid, curRemaining, currentEntries);
+            if (generated != null && generated.exists()) {
+                PdfHelper.sendPdfToWhatsApp(CustomerLedgerActivity.this, generated);
+            } else {
+                Toast.makeText(CustomerLedgerActivity.this, "Failed to prepare PDF for WhatsApp.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private double parseDoubleSafe(Object obj) {
@@ -89,7 +114,6 @@ public class CustomerLedgerActivity extends AppCompatActivity {
     private void loadCustomerLedgerData() {
         if (customerPhone.isEmpty()) return;
 
-        // Step 1: Fetch all approved/disbursed loans for this customer
         Request loanReq = new Request.Builder()
                 .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/loans?customer_phone=eq." + customerPhone + "&disbursement_status=eq.DISBURSED&order=id.asc")
                 .addHeader("apikey", API_KEY)
@@ -98,22 +122,19 @@ public class CustomerLedgerActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(loanReq).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful() || response.body() == null) return;
-                String loanBody = response.body().string();
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> loans = gson.fromJson(loanBody, type);
+                List<Map<String, Object>> loans = gson.fromJson(response.body().string(), type);
                 if (loans == null) loans = new ArrayList<>();
 
-                double totalApprovedLoan = 0.0; // Total Loan Amount (Principal + Interest)
+                double totalApprovedLoan = 0.0;
                 double totalPaidSum = 0.0;
 
                 for (Map<String, Object> l : loans) {
@@ -121,24 +142,17 @@ public class CustomerLedgerActivity extends AppCompatActivity {
                     totalPaidSum += parseDoubleSafe(l.get("paid_amount"));
                 }
 
-                double finalApproved = totalApprovedLoan;
-                double finalPaid = totalPaidSum;
-                double finalRemaining = Math.max(0.0, totalApprovedLoan - totalPaidSum);
+                curApproved = totalApprovedLoan;
+                curPaid = totalPaidSum;
+                curRemaining = Math.max(0.0, totalApprovedLoan - totalPaidSum);
 
                 runOnUiThread(() -> {
-                    if (tvApprovedLoan != null) {
-                        tvApprovedLoan.setText(String.format(Locale.getDefault(), "₹%.0f", finalApproved));
-                    }
-                    if (tvPaidBalance != null) {
-                        tvPaidBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalPaid));
-                    }
-                    if (tvRemainingBalance != null) {
-                        tvRemainingBalance.setText(String.format(Locale.getDefault(), "₹%.0f", finalRemaining));
-                    }
+                    if (tvApprovedLoan != null) tvApprovedLoan.setText(String.format(Locale.getDefault(), "₹%.0f", curApproved));
+                    if (tvPaidBalance != null) tvPaidBalance.setText(String.format(Locale.getDefault(), "₹%.0f", curPaid));
+                    if (tvRemainingBalance != null) tvRemainingBalance.setText(String.format(Locale.getDefault(), "₹%.0f", curRemaining));
                 });
 
-                // Step 2: Fetch all transactions recorded for this customer in chronological order
-                fetchTransactionsAndBuildTable(finalApproved);
+                fetchTransactionsAndBuildTable(curApproved);
             }
         });
     }
@@ -152,19 +166,16 @@ public class CustomerLedgerActivity extends AppCompatActivity {
                 .build();
 
         client.newCall(txReq).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+            @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> {
                     if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful() || response.body() == null) return;
-                String txBody = response.body().string();
                 Type type = new TypeToken<List<Map<String, Object>>>(){}.getType();
-                List<Map<String, Object>> txList = gson.fromJson(txBody, type);
+                List<Map<String, Object>> txList = gson.fromJson(response.body().string(), type);
                 if (txList == null) txList = new ArrayList<>();
 
                 List<CustLedgerEntry> entries = new ArrayList<>();
@@ -181,16 +192,14 @@ public class CustomerLedgerActivity extends AppCompatActivity {
                     entries.add(new CustLedgerEntry(sl++, date, paidAmt, runningRemaining));
                 }
 
-                // Show the latest payments at the top
                 Collections.reverse(entries);
-
-                // Re-index serial numbers for descending order view
-                for (int i = 0; i < entries.size(); i++) {
-                    entries.get(i).slNo = i + 1;
-                }
+                for (int i = 0; i < entries.size(); i++) entries.get(i).slNo = i + 1;
 
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+
+                    currentEntries.clear();
+                    currentEntries.addAll(entries);
 
                     if (entries.isEmpty()) {
                         if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
@@ -198,21 +207,19 @@ public class CustomerLedgerActivity extends AppCompatActivity {
                         if (tvEmpty != null) tvEmpty.setVisibility(View.GONE);
                     }
 
-                    if (rvLedger != null) {
-                        rvLedger.setAdapter(new CustLedgerAdapter(entries));
-                    }
+                    if (rvLedger != null) rvLedger.setAdapter(new CustLedgerAdapter(entries));
                 });
             }
         });
     }
 
-    static class CustLedgerEntry {
-        int slNo;
-        String date;
-        double paid;
-        double remainingBalance;
+    public static class CustLedgerEntry {
+        public int slNo;
+        public String date;
+        public double paid;
+        public double remainingBalance;
 
-        CustLedgerEntry(int slNo, String date, double paid, double remainingBalance) {
+        public CustLedgerEntry(int slNo, String date, double paid, double remainingBalance) {
             this.slNo = slNo;
             this.date = date;
             this.paid = paid;
@@ -222,13 +229,9 @@ public class CustomerLedgerActivity extends AppCompatActivity {
 
     static class CustLedgerAdapter extends RecyclerView.Adapter<CustLedgerAdapter.CustLedgerVH> {
         private final List<CustLedgerEntry> list;
+        CustLedgerAdapter(List<CustLedgerEntry> list) { this.list = list; }
 
-        CustLedgerAdapter(List<CustLedgerEntry> list) {
-            this.list = list;
-        }
-
-        @NonNull
-        @Override
+        @NonNull @Override
         public CustLedgerVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_customer_ledger_row, parent, false);
             return new CustLedgerVH(v);
@@ -237,27 +240,18 @@ public class CustomerLedgerActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull CustLedgerVH holder, int position) {
             CustLedgerEntry item = list.get(position);
-
             holder.tvSl.setText(String.valueOf(item.slNo));
             holder.tvDate.setText(item.date);
             holder.tvPaid.setText(String.format(Locale.getDefault(), "₹%.0f", item.paid));
             holder.tvRemaining.setText(String.format(Locale.getDefault(), "₹%.0f", item.remainingBalance));
 
-            if (position % 2 == 1) {
-                holder.itemView.setBackgroundColor(Color.parseColor("#141E33"));
-            } else {
-                holder.itemView.setBackgroundColor(Color.parseColor("#0F172A"));
-            }
+            holder.itemView.setBackgroundColor(position % 2 == 1 ? Color.parseColor("#141E33") : Color.parseColor("#0F172A"));
         }
 
-        @Override
-        public int getItemCount() {
-            return list.size();
-        }
+        @Override public int getItemCount() { return list.size(); }
 
         static class CustLedgerVH extends RecyclerView.ViewHolder {
             TextView tvSl, tvDate, tvPaid, tvRemaining;
-
             CustLedgerVH(@NonNull View v) {
                 super(v);
                 tvSl = v.findViewById(R.id.tvCustRowSl);
