@@ -13,7 +13,7 @@
         android:padding="16dp"
         android:paddingBottom="40dp">
 
-        <!-- Lender Account Header Card -->
+        <!-- Lender Profile Header Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -49,7 +49,7 @@
                         android:id="@+id/tvAccountLenderName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Lender Profile"
+                        android:text="Lender Control Center"
                         android:textColor="#FFFFFF"
                         android:textSize="17sp"
                         android:textStyle="bold" />
@@ -58,7 +58,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Administration &amp; Business Control"
+                        android:text="Loan approvals, rates &amp; registers"
                         android:textColor="#94A3B8"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -69,17 +69,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:text="LOAN PARAMETERS"
+            android:text="LOAN MANAGEMENT &amp; RATES"
             android:textColor="#38BDF8"
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- 1. SET MONTHLY INTEREST RATE CARD -->
+        <!-- 1. SET MONTHLY INTEREST RATE -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardSetInterestRate"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="14dp"
+            android:layout_marginBottom="12dp"
             android:clickable="true"
             android:focusable="true"
             android:foreground="?attr/selectableItemBackground"
@@ -139,6 +139,70 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- 2. APPROVE PENDING LOANS (RESTORED) -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardApproveLoans"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
+            app:cardBackgroundColor="@color/card_bg"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/edittext_bg"
+                    android:backgroundTint="#059669"
+                    android:gravity="center"
+                    android:text="✓"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Approve Pending Loans"
+                        android:textColor="#FFFFFF"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Review loan terms &amp; rate before approving"
+                        android:textColor="#10B981"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="→"
+                    android:textColor="#94A3B8"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -149,7 +213,7 @@
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- 2. SLATE LEDGER BOOK CARD -->
+        <!-- 3. SLATE LEDGER BOOK -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountLedgerBook"
             android:layout_width="match_parent"
@@ -211,7 +275,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 3. TODAY'S DUE / PENDING CARD -->
+        <!-- 4. TODAY'S DUE & PENDING -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountTodaysDue"
             android:layout_width="match_parent"
@@ -273,7 +337,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 4. TODAY'S PAYMENT CARD -->
+        <!-- 5. TODAY'S PAYMENT -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountTodaysPayment"
             android:layout_width="match_parent"
@@ -335,7 +399,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- 5. MASTER CLIENT DIRECTORY CARD -->
+        <!-- 6. MASTER CLIENT DIRECTORY -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardAccountMasterDirectory"
             android:layout_width="match_parent"
