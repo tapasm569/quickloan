@@ -1,142 +1,138 @@
 package com.quickloan.app;
 
+import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
-import com.google.gson.Gson;
-import okhttp3.*;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Locale;
 
 public class AccountDashboardFragment extends Fragment {
 
-    private static final String API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6aWRvaHV3Y2ViZm9vdnlkeWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2MDUzNjEsImV4cCI6MjEwNTE4MTM2MX0.2yFWPMXFK_UxTZMuv0J9XIPAPomyxP96MwCo9S2VQYY";
-    private final OkHttpClient client = new OkHttpClient();
-    private final Gson gson = new Gson();
+    public static final String PREF_NAME = "QuickLoanPrefs";
+    public static final String KEY_MONTHLY_RATE = "PREF_MONTHLY_INTEREST_RATE";
+
+    private TextView tvInterestBadge;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_account_dashboard, container, false);
-
-        setClickListener(view, R.id.cardTransferMoney, v -> startActivity(new Intent(getContext(), TransferMoneyActivity.class)));
-        setClickListener(view, R.id.cardCreateAccount, v -> showCreateBorrowerDialog());
-        setClickListener(view, R.id.cardApproveLoan, v -> startActivity(new Intent(getContext(), ApproveLoanActivity.class)));
-        setClickListener(view, R.id.cardTodaysDue, v -> startActivity(new Intent(getContext(), TodaysDueActivity.class)));
-        setClickListener(view, R.id.cardTodaysPayment, v -> startActivity(new Intent(getContext(), TodaysPaymentActivity.class)));
-        setClickListener(view, R.id.cardMaster, v -> startActivity(new Intent(getContext(), MasterActivity.class)));
-        setClickListener(view, R.id.cardLedgerBook, v -> startActivity(new Intent(getContext(), PaymentHistoryActivity.class)));
-
-        return view;
+        return inflater.inflate(R.layout.fragment_account_dashboard, container, false);
     }
 
-    private void setClickListener(View root, int viewId, View.OnClickListener listener) {
-        View target = root.findViewById(viewId);
-        if (target != null) {
-            target.setOnClickListener(listener);
-        }
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        tvInterestBadge = view.findViewById(R.id.tvAccountInterestBadge);
+        updateInterestBadge();
+
+        // 1. Set Monthly Interest Rate Card
+        view.findViewById(R.id.cardSetInterestRate).setOnClickListener(v -> showSetInterestRateDialog());
+
+        // 2. Slate Ledger Book Card
+        view.findViewById(R.id.cardAccountLedgerBook).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                startActivity(new Intent(getActivity(), PaymentHistoryActivity.class));
+            }
+        });
+
+        // 3. Today's Due & Pending Card
+        view.findViewById(R.id.cardAccountTodaysDue).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                startActivity(new Intent(getActivity(), TodaysDueActivity.class));
+            }
+        });
+
+        // 4. Today's Payment Card
+        view.findViewById(R.id.cardAccountTodaysPayment).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                startActivity(new Intent(getActivity(), TodaysPaymentActivity.class));
+            }
+        });
+
+        // 5. Master Client Directory Card
+        view.findViewById(R.id.cardAccountMasterDirectory).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                startActivity(new Intent(getActivity(), MasterActivity.class));
+            }
+        });
     }
 
-    private void showCreateBorrowerDialog() {
-        if (!isAdded() || getContext() == null) return;
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateInterestBadge();
+    }
 
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_create_borrower, null);
-        EditText etPhone = dialogView.findViewById(R.id.etBorrowerPhone);
-        EditText etPass = dialogView.findViewById(R.id.etBorrowerPassword);
+    private void updateInterestBadge() {
+        if (getContext() == null || tvInterestBadge == null) return;
+        SharedPreferences sp = getContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        float currentRate = sp.getFloat(KEY_MONTHLY_RATE, 2.0f);
+        tvInterestBadge.setText(String.format(Locale.getDefault(), "Current: %.1f%% / month", currentRate));
+    }
 
-        AlertDialog dialog = new AlertDialog.Builder(requireContext())
-                .setView(dialogView)
-                .create();
+    private void showSetInterestRateDialog() {
+        if (getContext() == null) return;
+        SharedPreferences sp = getContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        float currentRate = sp.getFloat(KEY_MONTHLY_RATE, 2.0f);
 
-        Button btnCreate = dialogView.findViewById(R.id.btnCreateId);
-        if (btnCreate != null) {
-            btnCreate.setOnClickListener(v -> {
-                String rawPhone = etPhone.getText().toString().trim();
-                String pass = etPass.getText().toString().trim();
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("Set Monthly Interest Rate");
 
-                if (rawPhone.isEmpty() || pass.isEmpty()) {
-                    Toast.makeText(getContext(), "Enter phone and password", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+        LinearLayout layout = new LinearLayout(getContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(60, 30, 60, 10);
 
-                String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
-                if (cleanPhone.length() > 10 && cleanPhone.startsWith("91")) {
-                    cleanPhone = cleanPhone.substring(cleanPhone.length() - 10);
-                }
-                final String finalPhone = cleanPhone;
+        TextView tvDesc = new TextView(getContext());
+        tvDesc.setText("Set default interest rate (% per month) applied to all borrower loans:");
+        tvDesc.setTextSize(13);
+        tvDesc.setTextColor(Color.parseColor("#94A3B8"));
+        layout.addView(tvDesc);
 
-                Map<String, Object> map = new HashMap<>();
-                map.put("name", "New Borrower");
-                map.put("phone", finalPhone);
-                map.put("password", pass);
-                map.put("lender_phone", "9932655607");
-                map.put("is_profile_completed", 0);
+        final EditText input = new EditText(getContext());
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setText(String.format(Locale.US, "%.1f", currentRate));
+        input.setHint("e.g. 2.0");
+        input.setTextSize(16);
+        layout.addView(input);
 
-                RequestBody body = RequestBody.create(gson.toJson(map), MediaType.get("application/json"));
-                Request request = new Request.Builder()
-                        .url("https://uzidohuwcebfoovydyak.supabase.co/rest/v1/customers")
-                        .addHeader("apikey", API_KEY)
-                        .addHeader("Authorization", "Bearer " + API_KEY)
-                        .post(body)
-                        .build();
+        TextView tvNote = new TextView(getContext());
+        tvNote.setText("Formula: Principal × (Rate% / month) × (Days / 30)");
+        tvNote.setTextSize(11);
+        tvNote.setPadding(0, 16, 0, 0);
+        tvNote.setTextColor(Color.parseColor("#38BDF8"));
+        layout.addView(tvNote);
 
-                client.newCall(request).enqueue(new Callback() {
-                    @Override public void onFailure(Call call, IOException e) {
-                        if (getActivity() != null) {
-                            requireActivity().runOnUiThread(() -> Toast.makeText(getContext(), "Network error", Toast.LENGTH_SHORT).show());
-                        }
-                    }
-                    @Override public void onResponse(Call call, Response response) {
-                        if (getActivity() != null) {
-                            requireActivity().runOnUiThread(() -> {
-                                if (response.isSuccessful()) {
-                                    Toast.makeText(getContext(), "ID created successfully", Toast.LENGTH_SHORT).show();
-                                    dialog.dismiss();
-                                } else {
-                                    Toast.makeText(getContext(), "Failed: " + response.code(), Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    }
-                });
-            });
-        }
+        builder.setView(layout);
 
-        Button btnWa = dialogView.findViewById(R.id.btnSendWhatsApp);
-        if (btnWa != null) {
-            btnWa.setOnClickListener(v -> {
-                String rawPhone = etPhone.getText().toString().trim();
-                String pass = etPass.getText().toString().trim();
-                if (rawPhone.isEmpty() || pass.isEmpty()) {
-                    Toast.makeText(getContext(), "Fill phone and password first", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
+        builder.setPositiveButton("Save Preset", (dialog, which) -> {
+            String val = input.getText().toString().trim();
+            if (!val.isEmpty()) {
                 try {
-                    String cleanPhone = rawPhone.replaceAll("[^0-9]", "");
-                    if (cleanPhone.length() == 10) cleanPhone = "91" + cleanPhone;
-                    String msg = "Hello, your Quick Loan account has been created!\nMobile: " + rawPhone + "\nPassword: " + pass;
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse("https://api.whatsapp.com/send?phone=" + cleanPhone + "&text=" + URLEncoder.encode(msg, "UTF-8")));
-                    startActivity(intent);
-                } catch (Exception e) {
-                    Toast.makeText(getContext(), "WhatsApp error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    float newRate = Float.parseFloat(val);
+                    sp.edit().putFloat(KEY_MONTHLY_RATE, newRate).apply();
+                    updateInterestBadge();
+                    Toast.makeText(getContext(), "Interest preset updated to " + newRate + "% / month", Toast.LENGTH_SHORT).show();
+                } catch (NumberFormatException e) {
+                    Toast.makeText(getContext(), "Invalid number format", Toast.LENGTH_SHORT).show();
                 }
-            });
-        }
+            }
+        });
 
-        dialog.show();
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
     }
 }
