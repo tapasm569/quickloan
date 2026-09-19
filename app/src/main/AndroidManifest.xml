@@ -30,6 +30,12 @@
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
         android:usesCleartextTraffic="false">
 
+          <activity
+    android:name=".AddBorrowerActivity"
+    android:exported="false"
+    android:screenOrientation="portrait" />
+
+
         <!-- Splash Screen Entry -->
         <activity
             android:name=".SplashActivity"
